@@ -8,7 +8,6 @@ from click.testing import CliRunner
 
 from fastapi_gen.cli import cli, create, main, new, templates
 from fastapi_gen.config import (
-    AIFrameworkType,
     AuthType,
     BackgroundTaskType,
     CIType,

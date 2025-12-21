@@ -13,6 +13,7 @@ from fastapi_gen.config import (
     CIType,
     DatabaseType,
     FrontendType,
+    LLMProviderType,
     LogfireFeatures,
     OAuthProvider,
     WebSocketAuthType,
@@ -860,6 +861,7 @@ class TestRunInteractivePrompts:
 
     @patch("fastapi_gen.prompts.questionary")
     @patch("fastapi_gen.prompts.prompt_websocket_auth")
+    @patch("fastapi_gen.prompts.prompt_llm_provider")
     @patch("fastapi_gen.prompts.prompt_ai_framework")
     @patch("fastapi_gen.prompts.prompt_ports")
     @patch("fastapi_gen.prompts.prompt_python_version")
@@ -888,6 +890,7 @@ class TestRunInteractivePrompts:
         mock_python_version: MagicMock,
         mock_ports: MagicMock,
         mock_ai_framework: MagicMock,
+        mock_llm_provider: MagicMock,
         mock_websocket_auth: MagicMock,
         mock_questionary: MagicMock,
     ) -> None:
@@ -930,6 +933,7 @@ class TestRunInteractivePrompts:
         mock_python_version.return_value = "3.12"
         mock_ports.return_value = {"backend_port": 8000}
         mock_ai_framework.return_value = AIFrameworkType.PYDANTIC_AI
+        mock_llm_provider.return_value = LLMProviderType.OPENAI
         mock_websocket_auth.return_value = WebSocketAuthType.JWT
 
         # Mock session management and conversation persistence confirm
@@ -943,6 +947,7 @@ class TestRunInteractivePrompts:
         assert config.enable_ai_agent is True
         assert config.websocket_auth == WebSocketAuthType.JWT
         assert config.enable_conversation_persistence is True
+        assert config.llm_provider == LLMProviderType.OPENAI
         mock_websocket_auth.assert_called_once()
 
     @patch("fastapi_gen.prompts.questionary")

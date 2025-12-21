@@ -335,7 +335,9 @@ def create(
         if config.frontend != FrontendType.NONE:
             console.print(f"[dim]Frontend: {config.frontend.value}[/]")
         if config.enable_ai_agent:
-            console.print(f"[dim]AI Agent: {config.ai_framework.value} ({config.llm_provider.value})[/]")
+            console.print(
+                f"[dim]AI Agent: {config.ai_framework.value} ({config.llm_provider.value})[/]"
+            )
         if config.background_tasks != BackgroundTaskType.NONE:
             console.print(f"[dim]Task Queue: {config.background_tasks.value}[/]")
         console.print()
