@@ -18,10 +18,10 @@ This guide covers setting up a local development environment for your generated 
 
 ```bash
 # Interactive mode
-fastapi-gen new
+fastapi-fullstack new
 
 # Or quick mode
-fastapi-gen create my_project --database postgresql --auth jwt
+fastapi-fullstack create my_project --database postgresql --auth jwt
 ```
 
 ### 2. Backend Setup

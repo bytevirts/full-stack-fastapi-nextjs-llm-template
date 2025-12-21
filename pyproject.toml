@@ -38,12 +38,12 @@ dev = [
 ]
 
 [project.scripts]
-fastapi-gen = "fastapi_gen.cli:main"
+fastapi-fullstack = "fastapi_gen.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/fastapi-gen"
-Documentation = "https://github.com/yourusername/fastapi-gen#readme"
-Repository = "https://github.com/yourusername/fastapi-gen"
+Homepage = "https://github.com/vstorm-co/full-stack-fastapi-nextjs-llm-template"
+Documentation = "https://github.com/vstorm-co/full-stack-fastapi-nextjs-llm-template#readme"
+Repository = "https://github.com/vstorm-co/full-stack-fastapi-nextjs-llm-template"
 
 [build-system]
 requires = ["hatchling"]
