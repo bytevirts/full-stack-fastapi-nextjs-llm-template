@@ -216,11 +216,22 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.enable_ai_agent %}
 
-    # === AI Agent ({{ cookiecutter.ai_framework }}) ===
+    # === AI Agent ({{ cookiecutter.ai_framework }}, {{ cookiecutter.llm_provider }}) ===
+{%- if cookiecutter.use_openai %}
     OPENAI_API_KEY: str = ""
     AI_MODEL: str = "gpt-4o-mini"
+{%- endif %}
+{%- if cookiecutter.use_anthropic %}
+    ANTHROPIC_API_KEY: str = ""
+    AI_MODEL: str = "claude-sonnet-4-5-20241022"
+{%- endif %}
+{%- if cookiecutter.use_openrouter %}
+    OPENROUTER_API_KEY: str = ""
+    AI_MODEL: str = "anthropic/claude-3.5-sonnet"
+{%- endif %}
     AI_TEMPERATURE: float = 0.7
     AI_FRAMEWORK: str = "{{ cookiecutter.ai_framework }}"
+    LLM_PROVIDER: str = "{{ cookiecutter.llm_provider }}"
 {%- if cookiecutter.use_langchain %}
 
     # === LangSmith (LangChain observability) ===

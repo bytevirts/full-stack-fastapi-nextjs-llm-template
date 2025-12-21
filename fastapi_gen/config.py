@@ -91,6 +91,14 @@ class AIFrameworkType(str, Enum):
     LANGCHAIN = "langchain"
 
 
+class LLMProviderType(str, Enum):
+    """Supported LLM providers."""
+
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    OPENROUTER = "openrouter"
+
+
 class LogfireFeatures(BaseModel):
     """Logfire instrumentation features."""
 
@@ -145,6 +153,7 @@ class ProjectConfig(BaseModel):
     enable_file_storage: bool = False
     enable_ai_agent: bool = False
     ai_framework: AIFrameworkType = AIFrameworkType.PYDANTIC_AI
+    llm_provider: LLMProviderType = LLMProviderType.OPENAI
     enable_conversation_persistence: bool = False
     enable_webhooks: bool = False
     websocket_auth: WebSocketAuthType = WebSocketAuthType.NONE
@@ -203,6 +212,12 @@ class ProjectConfig(BaseModel):
             raise ValueError("Session management requires a database")
         if self.enable_conversation_persistence and self.database == DatabaseType.NONE:
             raise ValueError("Conversation persistence requires a database")
+        if (
+            self.enable_ai_agent
+            and self.ai_framework == AIFrameworkType.LANGCHAIN
+            and self.llm_provider == LLMProviderType.OPENROUTER
+        ):
+            raise ValueError("OpenRouter is not supported with LangChain")
         return self
 
     def to_cookiecutter_context(self) -> dict[str, Any]:
@@ -272,6 +287,10 @@ class ProjectConfig(BaseModel):
             "ai_framework": self.ai_framework.value,
             "use_pydantic_ai": self.ai_framework == AIFrameworkType.PYDANTIC_AI,
             "use_langchain": self.ai_framework == AIFrameworkType.LANGCHAIN,
+            "llm_provider": self.llm_provider.value,
+            "use_openai": self.llm_provider == LLMProviderType.OPENAI,
+            "use_anthropic": self.llm_provider == LLMProviderType.ANTHROPIC,
+            "use_openrouter": self.llm_provider == LLMProviderType.OPENROUTER,
             "enable_conversation_persistence": self.enable_conversation_persistence,
             "enable_webhooks": self.enable_webhooks,
             "websocket_auth": self.websocket_auth.value,

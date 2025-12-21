@@ -15,6 +15,7 @@ from .config import (
     CIType,
     DatabaseType,
     FrontendType,
+    LLMProviderType,
     LogfireFeatures,
     OAuthProvider,
     ProjectConfig,
@@ -399,6 +400,40 @@ def prompt_ai_framework() -> AIFrameworkType:
     )
 
 
+def prompt_llm_provider(ai_framework: AIFrameworkType) -> LLMProviderType:
+    """Prompt for LLM provider selection.
+
+    Args:
+        ai_framework: The selected AI framework. OpenRouter is only
+            available for PydanticAI.
+    """
+    console.print()
+    console.print("[bold cyan]LLM Provider[/]")
+    console.print()
+
+    choices = [
+        questionary.Choice("OpenAI (gpt-4o-mini)", value=LLMProviderType.OPENAI),
+        questionary.Choice("Anthropic (claude-sonnet-4-5)", value=LLMProviderType.ANTHROPIC),
+    ]
+
+    # OpenRouter only available for PydanticAI
+    if ai_framework == AIFrameworkType.PYDANTIC_AI:
+        choices.append(
+            questionary.Choice("OpenRouter (multi-provider)", value=LLMProviderType.OPENROUTER)
+        )
+
+    return cast(
+        LLMProviderType,
+        _check_cancelled(
+            questionary.select(
+                "Select LLM provider:",
+                choices=choices,
+                default=choices[0],
+            ).ask()
+        ),
+    )
+
+
 def prompt_websocket_auth() -> WebSocketAuthType:
     """Prompt for WebSocket authentication method for AI Agent."""
     console.print()
@@ -579,12 +614,14 @@ def run_interactive_prompts() -> ProjectConfig:
     ):
         integrations["enable_redis"] = True
 
-    # AI framework, WebSocket auth and conversation persistence for AI Agent
+    # AI framework, LLM provider, WebSocket auth and conversation persistence for AI Agent
     ai_framework = AIFrameworkType.PYDANTIC_AI
+    llm_provider = LLMProviderType.OPENAI
     websocket_auth = WebSocketAuthType.NONE
     enable_conversation_persistence = False
     if integrations.get("enable_ai_agent"):
         ai_framework = prompt_ai_framework()
+        llm_provider = prompt_llm_provider(ai_framework)
         websocket_auth = prompt_websocket_auth()
         # Only offer persistence if database is enabled
         if database != DatabaseType.NONE:
@@ -623,6 +660,7 @@ def run_interactive_prompts() -> ProjectConfig:
         logfire_features=logfire_features,
         background_tasks=background_tasks,
         ai_framework=ai_framework,
+        llm_provider=llm_provider,
         websocket_auth=websocket_auth,
         enable_conversation_persistence=enable_conversation_persistence,
         admin_environments=admin_environments,
@@ -673,7 +711,7 @@ def show_summary(config: ProjectConfig) -> None:
     if config.enable_websockets:
         enabled_features.append("WebSockets")
     if config.enable_ai_agent:
-        ai_info = f"AI Agent ({config.ai_framework.value})"
+        ai_info = f"AI Agent ({config.ai_framework.value}, {config.llm_provider.value})"
         enabled_features.append(ai_info)
     if config.enable_webhooks:
         enabled_features.append("Webhooks")

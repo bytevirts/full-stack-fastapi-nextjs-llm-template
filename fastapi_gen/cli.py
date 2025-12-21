@@ -13,6 +13,7 @@ from .config import (
     CIType,
     DatabaseType,
     FrontendType,
+    LLMProviderType,
     OAuthProvider,
     ProjectConfig,
 )
@@ -139,6 +140,12 @@ def new(output: Path | None, no_input: bool, name: str | None) -> None:
     default="pydantic_ai",
     help="AI framework (default: pydantic_ai)",
 )
+@click.option(
+    "--llm-provider",
+    type=click.Choice(["openai", "anthropic", "openrouter"]),
+    default="openai",
+    help="LLM provider (default: openai). Note: openrouter only works with pydantic_ai",
+)
 # New optional feature flags
 @click.option("--redis", is_flag=True, help="Enable Redis")
 @click.option("--caching", is_flag=True, help="Enable caching (requires --redis)")
@@ -194,6 +201,7 @@ def create(
     db_max_overflow: int,
     ai_agent: bool,
     ai_framework: str,
+    llm_provider: str,
     # New optional features
     redis: bool,
     caching: bool,
@@ -249,6 +257,7 @@ def create(
                 enable_redis=True,
                 enable_ai_agent=True,
                 ai_framework=AIFrameworkType(ai_framework),
+                llm_provider=LLMProviderType(llm_provider),
                 enable_websockets=True,
                 enable_conversation_persistence=True,
                 enable_docker=True,
@@ -298,6 +307,7 @@ def create(
                 db_max_overflow=db_max_overflow,
                 enable_ai_agent=ai_agent,
                 ai_framework=AIFrameworkType(ai_framework),
+                llm_provider=LLMProviderType(llm_provider),
                 # New options
                 enable_redis=redis,
                 enable_caching=caching,
@@ -325,7 +335,7 @@ def create(
         if config.frontend != FrontendType.NONE:
             console.print(f"[dim]Frontend: {config.frontend.value}[/]")
         if config.enable_ai_agent:
-            console.print(f"[dim]AI Agent: {config.ai_framework.value}[/]")
+            console.print(f"[dim]AI Agent: {config.ai_framework.value} ({config.llm_provider.value})[/]")
         if config.background_tasks != BackgroundTaskType.NONE:
             console.print(f"[dim]Task Queue: {config.background_tasks.value}[/]")
         console.print()
@@ -386,6 +396,9 @@ def templates() -> None:
     console.print("  --ai-agent                  Enable AI agent")
     console.print("  --ai-framework pydantic_ai  PydanticAI (recommended)")
     console.print("  --ai-framework langchain    LangChain")
+    console.print("  --llm-provider openai       OpenAI (gpt-4o-mini)")
+    console.print("  --llm-provider anthropic    Anthropic (claude-sonnet-4-5)")
+    console.print("  --llm-provider openrouter   OpenRouter (pydantic_ai only)")
     console.print()
 
     console.print("[bold]Integrations:[/]")
