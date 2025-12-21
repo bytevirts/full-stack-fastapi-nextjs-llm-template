@@ -1,5 +1,4 @@
 """Project management CLI."""
-# ruff: noqa: E402 - Imports structured for Jinja2 template conditionals
 
 import click
 from tabulate import tabulate
@@ -424,7 +423,8 @@ def cmd_cli():
 
 
 # Register all custom commands from app/commands/
-from app.commands import register_commands
+from app.commands import register_commands  # noqa: E402, I001
+
 register_commands(cmd_cli)
 
 

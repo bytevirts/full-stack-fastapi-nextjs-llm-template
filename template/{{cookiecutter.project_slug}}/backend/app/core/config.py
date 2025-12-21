@@ -3,7 +3,11 @@
 from pathlib import Path
 from typing import Literal
 
+{%- if cookiecutter.use_database %}
 from pydantic import computed_field, field_validator
+{%- else %}
+from pydantic import field_validator
+{%- endif %}
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

@@ -16,16 +16,16 @@ async def test_not_found_error_format(client: AsyncClient):
 
 {%- if cookiecutter.use_jwt %}
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock  # noqa: E402
 
-from httpx import ASGITransport
+from httpx import ASGITransport  # noqa: E402
 
-from app.main import app
+from app.main import app  # noqa: E402
 {%- if cookiecutter.enable_redis %}
-from app.api.deps import get_redis
+from app.api.deps import get_redis  # noqa: E402
 {%- endif %}
 {%- if cookiecutter.use_database %}
-from app.api.deps import get_db_session
+from app.api.deps import get_db_session  # noqa: E402
 {%- endif %}
 
 

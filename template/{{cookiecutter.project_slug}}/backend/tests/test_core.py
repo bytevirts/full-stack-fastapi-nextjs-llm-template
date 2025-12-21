@@ -110,7 +110,7 @@ class TestRateLimit:
 {%- if cookiecutter.enable_logfire %}
 
 
-from unittest.mock import patch
+from unittest.mock import patch  # noqa: E402
 
 
 class TestLogfireSetup:
