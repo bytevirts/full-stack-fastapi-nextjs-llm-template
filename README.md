@@ -60,7 +60,7 @@ This template gives you all of that out of the box, with **20+ configurable inte
 - **WebSocket Streaming** - Real-time responses with full event access
 - **Conversation Persistence** - Save chat history to database
 - **Custom Tools** - Easily extend agent capabilities
-- **Multi-model Support** - OpenAI, Anthropic, and more
+- **Multi-provider Support** - OpenAI, Anthropic, OpenRouter
 - **Observability** - Logfire for PydanticAI, LangSmith for LangChain
 
 ### ⚡ Backend (FastAPI)
@@ -126,38 +126,95 @@ fastapi-fullstack create my_ai_app \
   --database postgresql \
   --auth jwt \
   --frontend nextjs
+
+# Use presets for common setups
+fastapi-fullstack create my_ai_app --preset production   # Full production setup
+fastapi-fullstack create my_ai_app --preset ai-agent     # AI agent with streaming
+
+# Minimal project (no extras)
+fastapi-fullstack create my_ai_app --minimal
 ```
 
 ### Start Development
 
+After generating your project, follow these steps:
+
+#### 1. Install dependencies
+
 ```bash
 cd my_ai_app
+make install
+```
 
-# Backend
-cd backend
-uv sync
-cp .env.example .env
-alembic upgrade head
+#### 2. Start the database
 
-# Create admin user
-uv run my_ai_app user create --email admin@example.com --password secret123 --superuser
+```bash
+# PostgreSQL (with Docker)
+make docker-db
+```
 
-# Start server
-uv run uvicorn app.main:app --reload
+#### 3. Create and apply database migrations
 
-# Frontend (new terminal)
+```bash
+# Create initial migration (first time only)
+make db-migrate
+# Enter message: "Initial migration"
+
+# Apply migrations to create tables
+make db-upgrade
+```
+
+#### 4. Create admin user
+
+```bash
+make create-admin
+# Enter email and password when prompted
+```
+
+#### 5. Start the backend
+
+```bash
+make run
+```
+
+#### 6. Start the frontend (new terminal)
+
+```bash
 cd frontend
 bun install
 bun dev
 ```
 
-> **Note:** The admin user is required to access the SQLAdmin panel at `/admin`. Use the `--superuser` flag to grant full admin privileges.
-
 **Access:**
 - API: http://localhost:8000
 - Docs: http://localhost:8000/docs
-- Admin Panel: http://localhost:8000/admin
+- Admin Panel: http://localhost:8000/admin (login with admin user)
 - Frontend: http://localhost:3000
+
+### Quick Start with Docker
+
+Run everything in Docker:
+
+```bash
+make docker-up       # Start backend + database
+make docker-frontend # Start frontend
+```
+
+### Using the Project CLI
+
+Each generated project has a CLI named after your `project_slug`. For example, if you created `my_ai_app`:
+
+```bash
+cd backend
+
+# The CLI command is: uv run <project_slug> <command>
+uv run my_ai_app server run --reload     # Start dev server
+uv run my_ai_app db migrate -m "message" # Create migration
+uv run my_ai_app db upgrade              # Apply migrations
+uv run my_ai_app user create-admin       # Create admin user
+```
+
+Use `make help` to see all available Makefile shortcuts.
 
 ---
 
@@ -255,15 +312,31 @@ See [Architecture Documentation](https://github.com/vstorm-co/full-stack-fastapi
 
 ## 🤖 AI Agent
 
-Choose between **PydanticAI** or **LangChain** when generating your project:
+Choose between **PydanticAI** or **LangChain** when generating your project, with support for multiple LLM providers:
 
 ```bash
-# PydanticAI (default)
+# PydanticAI with OpenAI (default)
 fastapi-fullstack create my_app --ai-agent --ai-framework pydantic_ai
 
-# LangChain
+# PydanticAI with Anthropic
+fastapi-fullstack create my_app --ai-agent --ai-framework pydantic_ai --llm-provider anthropic
+
+# PydanticAI with OpenRouter
+fastapi-fullstack create my_app --ai-agent --ai-framework pydantic_ai --llm-provider openrouter
+
+# LangChain with OpenAI
 fastapi-fullstack create my_app --ai-agent --ai-framework langchain
+
+# LangChain with Anthropic
+fastapi-fullstack create my_app --ai-agent --ai-framework langchain --llm-provider anthropic
 ```
+
+### Supported LLM Providers
+
+| Framework | OpenAI | Anthropic | OpenRouter |
+|-----------|:------:|:---------:|:----------:|
+| **PydanticAI** | ✓ | ✓ | ✓ |
+| **LangChain** | ✓ | ✓ | - |
 
 ### PydanticAI Integration
 
@@ -508,7 +581,7 @@ my_project/
 │   │   ├── schemas/             # Pydantic schemas
 │   │   ├── repositories/        # Data access layer
 │   │   ├── services/            # Business logic
-│   │   ├── agents/              # AI agents (PydanticAI or LangChain)
+│   │   ├── agents/              # AI agents with centralized prompts
 │   │   ├── commands/            # Django-style CLI commands
 │   │   └── worker/              # Background tasks
 │   ├── cli/                     # Project CLI
@@ -526,6 +599,14 @@ my_project/
 └── README.md
 ```
 
+Generated projects include version metadata in `pyproject.toml` for tracking:
+
+```toml
+[tool.fastapi-fullstack]
+generator_version = "0.1.5"
+generated_at = "2024-12-21T10:30:00+00:00"
+```
+
 ---
 
 ## ⚙️ Configuration Options
@@ -538,8 +619,17 @@ my_project/
 | **Auth** | `jwt`, `api_key`, `both`, `none` | JWT includes user management |
 | **OAuth** | `none`, `google` | Social login |
 | **AI Framework** | `pydantic_ai`, `langchain` | Choose your AI agent framework |
+| **LLM Provider** | `openai`, `anthropic`, `openrouter` | OpenRouter only with PydanticAI |
 | **Background Tasks** | `none`, `celery`, `taskiq`, `arq` | Distributed queues |
 | **Frontend** | `none`, `nextjs` | Next.js 15 + React 19 |
+
+### Presets
+
+| Preset | Description |
+|--------|-------------|
+| `--preset production` | Full production setup with Redis, Sentry, Kubernetes, Prometheus |
+| `--preset ai-agent` | AI agent with WebSocket streaming and conversation persistence |
+| `--minimal` | Minimal project with no extras |
 
 ### Integrations
 
@@ -571,6 +661,7 @@ fastapi-fullstack new
 | [Observability](https://github.com/vstorm-co/full-stack-fastapi-nextjs-llm-template/blob/main/docs/observability.md) | Logfire integration, tracing, metrics |
 | [Deployment](https://github.com/vstorm-co/full-stack-fastapi-nextjs-llm-template/blob/main/docs/deployment.md) | Docker, Kubernetes, production setup |
 | [Development](https://github.com/vstorm-co/full-stack-fastapi-nextjs-llm-template/blob/main/docs/development.md) | Local setup, testing, debugging |
+| [Changelog](https://github.com/vstorm-co/full-stack-fastapi-nextjs-llm-template/blob/main/docs/CHANGELOG.md) | Version history and release notes |
 
 ---
 

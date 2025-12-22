@@ -32,26 +32,7 @@ function AuthenticatedChatContainer() {
   const { currentConversationId, currentMessages } = useConversationStore();
   const { addMessage: addChatMessage } = useChatStore();
   const { fetchConversations } = useConversations();
-
-  useEffect(() => {
-    if (currentMessages.length > 0) {
-      currentMessages.forEach((msg) => {
-        addChatMessage({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          timestamp: new Date(msg.created_at),
-          toolCalls: msg.tool_calls?.map((tc) => ({
-            id: tc.tool_call_id,
-            name: tc.tool_name,
-            args: tc.args,
-            result: tc.result,
-            status: tc.status === "failed" ? "error" : tc.status,
-          })),
-        });
-      });
-    }
-  }, [currentMessages, addChatMessage]);
+  const prevConversationIdRef = useRef<string | null | undefined>(undefined);
 
   const handleConversationCreated = useCallback((conversationId: string) => {
     fetchConversations();
@@ -71,6 +52,54 @@ function AuthenticatedChatContainer() {
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Clear messages when conversation changes, but NOT when going from null to a new ID
+  // (that happens when a new chat is saved - we want to keep the messages)
+  useEffect(() => {
+    const prevId = prevConversationIdRef.current;
+    const currId = currentConversationId;
+
+    // Skip initial mount
+    if (prevId === undefined) {
+      prevConversationIdRef.current = currId;
+      return;
+    }
+
+    // Clear messages when:
+    // 1. Going from a conversation to null (new chat)
+    // 2. Switching between two different conversations
+    // Do NOT clear when going from null to a conversation (new chat being saved)
+    const shouldClear =
+      currId === null || // Going to new chat
+      (prevId !== null && prevId !== currId); // Switching between conversations
+
+    if (shouldClear) {
+      clearMessages();
+    }
+
+    prevConversationIdRef.current = currId;
+  }, [currentConversationId, clearMessages]);
+
+  // Load messages from conversation store when switching to a saved conversation
+  useEffect(() => {
+    if (currentMessages.length > 0) {
+      currentMessages.forEach((msg) => {
+        addChatMessage({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.created_at),
+          toolCalls: msg.tool_calls?.map((tc) => ({
+            id: tc.tool_call_id,
+            name: tc.tool_name,
+            args: tc.args,
+            result: tc.result,
+            status: tc.status === "failed" ? "error" : tc.status,
+          })),
+        });
+      });
+    }
+  }, [currentMessages, addChatMessage]);
 
   useEffect(() => {
     connect();

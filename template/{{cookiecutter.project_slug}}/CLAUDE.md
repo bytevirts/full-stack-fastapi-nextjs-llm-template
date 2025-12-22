@@ -24,10 +24,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Redis (caching, sessions)
 {%- endif %}
 {%- if cookiecutter.enable_ai_agent and cookiecutter.use_pydantic_ai %}
-- PydanticAI (AI agents with tool support)
+- PydanticAI (AI agents with {{ cookiecutter.llm_provider }})
 {%- endif %}
 {%- if cookiecutter.enable_ai_agent and cookiecutter.use_langchain %}
-- LangChain (AI agents with tool support)
+- LangChain (AI agents with {{ cookiecutter.llm_provider }})
 {%- endif %}
 {%- if cookiecutter.use_celery %}
 - Celery (background tasks)
@@ -321,8 +321,14 @@ POSTGRES_PASSWORD=secret
 {%- if cookiecutter.use_jwt %}
 SECRET_KEY=change-me-use-openssl-rand-hex-32
 {%- endif %}
-{%- if cookiecutter.enable_ai_agent %}
+{%- if cookiecutter.enable_ai_agent and cookiecutter.use_openai %}
 OPENAI_API_KEY=sk-...
+{%- endif %}
+{%- if cookiecutter.enable_ai_agent and cookiecutter.use_anthropic %}
+ANTHROPIC_API_KEY=sk-ant-...
+{%- endif %}
+{%- if cookiecutter.enable_ai_agent and cookiecutter.use_openrouter %}
+OPENROUTER_API_KEY=sk-or-...
 {%- endif %}
 {%- if cookiecutter.enable_logfire %}
 LOGFIRE_TOKEN=your-token

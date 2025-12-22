@@ -1,5 +1,6 @@
 """Interactive prompts for project configuration."""
 
+import re
 from typing import Any, cast
 
 import questionary
@@ -15,9 +16,11 @@ from .config import (
     CIType,
     DatabaseType,
     FrontendType,
+    LLMProviderType,
     LogfireFeatures,
     OAuthProvider,
     ProjectConfig,
+    RateLimitStorageType,
     WebSocketAuthType,
 )
 
@@ -41,6 +44,40 @@ def _check_cancelled(value: Any) -> Any:
     return value
 
 
+def _validate_project_name(name: str) -> bool | str:
+    """Validate project name input.
+
+    Returns True if valid, or an error message string if invalid.
+    Allows alphanumeric characters, underscores, spaces, and dashes.
+    First character must be a letter.
+    """
+    if not name:
+        return "Project name cannot be empty"
+    if not name[0].isalpha():
+        return "Project name must start with a letter"
+    if not all(c.isalnum() or c in "_- " for c in name):
+        return "Project name can only contain letters, numbers, underscores, spaces, and dashes"
+    return True
+
+
+def _normalize_project_name(name: str) -> str:
+    """Normalize project name to lowercase with underscores."""
+    return name.lower().replace(" ", "_").replace("-", "_")
+
+
+def _validate_email(email: str) -> bool | str:
+    """Validate email format.
+
+    Returns True if valid, or an error message string if invalid.
+    """
+    if not email:
+        return "Email cannot be empty"
+    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    if not re.match(pattern, email):
+        return "Please enter a valid email address"
+    return True
+
+
 def prompt_basic_info() -> dict[str, str]:
     """Prompt for basic project information."""
     console.print("[bold cyan]Basic Information[/]")
@@ -49,12 +86,15 @@ def prompt_basic_info() -> dict[str, str]:
     raw_project_name = _check_cancelled(
         questionary.text(
             "Project name:",
-            validate=lambda x: len(x) > 0
-            and x[0].isalpha()
-            and x.replace("_", "").replace(" ", "").isalnum(),
+            validate=_validate_project_name,
         ).ask()
     )
-    project_name = raw_project_name.lower().replace(" ", "_").replace("-", "_")
+    project_name = _normalize_project_name(raw_project_name)
+
+    # Show converted name if it differs from input
+    if project_name != raw_project_name:
+        console.print(f"  [dim]→ Will be saved as:[/] [cyan]{project_name}[/]")
+        console.print()
 
     project_description = _check_cancelled(
         questionary.text(
@@ -74,6 +114,7 @@ def prompt_basic_info() -> dict[str, str]:
         questionary.text(
             "Author email:",
             default="your@email.com",
+            validate=_validate_email,
         ).ask()
     )
 
@@ -269,6 +310,72 @@ def prompt_integrations() -> dict[str, bool]:
     }
 
 
+def _validate_positive_integer(value: str) -> bool | str:
+    """Validate that input is a positive integer.
+
+    Returns True if valid, or an error message string if invalid.
+    """
+    if not value:
+        return "Value cannot be empty"
+    if not value.isdigit():
+        return "Must be a positive number"
+    if int(value) <= 0:
+        return "Must be greater than 0"
+    return True
+
+
+def prompt_rate_limit_config(redis_enabled: bool) -> tuple[int, int, RateLimitStorageType]:
+    """Prompt for rate limiting configuration.
+
+    Args:
+        redis_enabled: Whether Redis is enabled (affects storage choices).
+
+    Returns:
+        Tuple of (requests, period, storage).
+    """
+    console.print()
+    console.print("[bold cyan]Rate Limiting Configuration[/]")
+    console.print()
+
+    requests_str = _check_cancelled(
+        questionary.text(
+            "Requests per period:",
+            default="100",
+            validate=_validate_positive_integer,
+        ).ask()
+    )
+
+    period_str = _check_cancelled(
+        questionary.text(
+            "Period in seconds:",
+            default="60",
+            validate=_validate_positive_integer,
+        ).ask()
+    )
+
+    # Build storage choices based on whether Redis is enabled
+    storage_choices = [
+        questionary.Choice("Memory (single instance)", value=RateLimitStorageType.MEMORY),
+    ]
+    if redis_enabled:
+        storage_choices.append(
+            questionary.Choice("Redis (distributed)", value=RateLimitStorageType.REDIS)
+        )
+
+    storage = cast(
+        RateLimitStorageType,
+        _check_cancelled(
+            questionary.select(
+                "Storage backend:",
+                choices=storage_choices,
+                default=storage_choices[0],
+            ).ask()
+        ),
+    )
+
+    return int(requests_str), int(period_str), storage
+
+
 def prompt_dev_tools() -> dict[str, Any]:
     """Prompt for development tools."""
     console.print()
@@ -281,7 +388,6 @@ def prompt_dev_tools() -> dict[str, Any]:
             choices=[
                 questionary.Choice("pytest + fixtures", value="pytest", checked=True),
                 questionary.Choice("pre-commit hooks", value="precommit", checked=True),
-                questionary.Choice("Makefile", value="makefile", checked=True),
                 questionary.Choice("Docker + docker-compose", value="docker", checked=True),
                 questionary.Choice("Kubernetes manifests", value="kubernetes"),
             ],
@@ -302,7 +408,6 @@ def prompt_dev_tools() -> dict[str, Any]:
     return {
         "enable_pytest": "pytest" in features,
         "enable_precommit": "precommit" in features,
-        "enable_makefile": "makefile" in features,
         "enable_docker": "docker" in features,
         "enable_kubernetes": "kubernetes" in features,
         "ci_type": ci_type,
@@ -368,6 +473,40 @@ def prompt_ai_framework() -> AIFrameworkType:
         _check_cancelled(
             questionary.select(
                 "Select AI framework:",
+                choices=choices,
+                default=choices[0],
+            ).ask()
+        ),
+    )
+
+
+def prompt_llm_provider(ai_framework: AIFrameworkType) -> LLMProviderType:
+    """Prompt for LLM provider selection.
+
+    Args:
+        ai_framework: The selected AI framework. OpenRouter is only
+            available for PydanticAI.
+    """
+    console.print()
+    console.print("[bold cyan]LLM Provider[/]")
+    console.print()
+
+    choices = [
+        questionary.Choice("OpenAI (gpt-4o-mini)", value=LLMProviderType.OPENAI),
+        questionary.Choice("Anthropic (claude-sonnet-4-5)", value=LLMProviderType.ANTHROPIC),
+    ]
+
+    # OpenRouter only available for PydanticAI
+    if ai_framework == AIFrameworkType.PYDANTIC_AI:
+        choices.append(
+            questionary.Choice("OpenRouter (multi-provider)", value=LLMProviderType.OPENROUTER)
+        )
+
+    return cast(
+        LLMProviderType,
+        _check_cancelled(
+            questionary.select(
+                "Select LLM provider:",
                 choices=choices,
                 default=choices[0],
             ).ask()
@@ -555,12 +694,14 @@ def run_interactive_prompts() -> ProjectConfig:
     ):
         integrations["enable_redis"] = True
 
-    # AI framework, WebSocket auth and conversation persistence for AI Agent
+    # AI framework, LLM provider, WebSocket auth and conversation persistence for AI Agent
     ai_framework = AIFrameworkType.PYDANTIC_AI
+    llm_provider = LLMProviderType.OPENAI
     websocket_auth = WebSocketAuthType.NONE
     enable_conversation_persistence = False
     if integrations.get("enable_ai_agent"):
         ai_framework = prompt_ai_framework()
+        llm_provider = prompt_llm_provider(ai_framework)
         websocket_auth = prompt_websocket_auth()
         # Only offer persistence if database is enabled
         if database != DatabaseType.NONE:
@@ -571,11 +712,23 @@ def run_interactive_prompts() -> ProjectConfig:
                 ).ask()
             )
 
-    # Admin panel configuration (when enabled and PostgreSQL)
+    # Admin panel configuration (when enabled and SQL database - PostgreSQL or SQLite)
     admin_environments = AdminEnvironmentType.DEV_STAGING
     admin_require_auth = True
-    if integrations.get("enable_admin_panel") and database == DatabaseType.POSTGRESQL:
+    if integrations.get("enable_admin_panel") and database in (
+        DatabaseType.POSTGRESQL,
+        DatabaseType.SQLITE,
+    ):
         admin_environments, admin_require_auth = prompt_admin_config()
+
+    # Rate limit configuration (when rate limiting is enabled)
+    rate_limit_requests = 100
+    rate_limit_period = 60
+    rate_limit_storage = RateLimitStorageType.MEMORY
+    if integrations.get("enable_rate_limiting"):
+        rate_limit_requests, rate_limit_period, rate_limit_storage = prompt_rate_limit_config(
+            redis_enabled=integrations.get("enable_redis", False)
+        )
 
     # Frontend features (i18n, etc.)
     frontend_features: dict[str, bool] = {}
@@ -599,10 +752,14 @@ def run_interactive_prompts() -> ProjectConfig:
         logfire_features=logfire_features,
         background_tasks=background_tasks,
         ai_framework=ai_framework,
+        llm_provider=llm_provider,
         websocket_auth=websocket_auth,
         enable_conversation_persistence=enable_conversation_persistence,
         admin_environments=admin_environments,
         admin_require_auth=admin_require_auth,
+        rate_limit_requests=rate_limit_requests,
+        rate_limit_period=rate_limit_period,
+        rate_limit_storage=rate_limit_storage,
         python_version=python_version,
         ci_type=ci_type,
         frontend=frontend,
@@ -638,7 +795,8 @@ def show_summary(config: ProjectConfig) -> None:
     if config.enable_caching:
         enabled_features.append("Caching")
     if config.enable_rate_limiting:
-        enabled_features.append("Rate Limiting")
+        rate_info = f"Rate Limiting ({config.rate_limit_requests}/{config.rate_limit_period}s, {config.rate_limit_storage.value})"
+        enabled_features.append(rate_info)
     if config.enable_admin_panel:
         admin_info = "Admin Panel"
         if config.admin_environments.value != "all":
@@ -649,7 +807,7 @@ def show_summary(config: ProjectConfig) -> None:
     if config.enable_websockets:
         enabled_features.append("WebSockets")
     if config.enable_ai_agent:
-        ai_info = f"AI Agent ({config.ai_framework.value})"
+        ai_info = f"AI Agent ({config.ai_framework.value}, {config.llm_provider.value})"
         enabled_features.append(ai_info)
     if config.enable_webhooks:
         enabled_features.append("Webhooks")

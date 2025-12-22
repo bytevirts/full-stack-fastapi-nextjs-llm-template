@@ -98,6 +98,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_red
     await close_db()
 {%- endif %}
 
+{%- if cookiecutter.use_sqlite %}
+    from app.db.session import close_db
+    close_db()
+{%- endif %}
+
 
 # Environments where API docs should be visible
 SHOW_DOCS_ENVIRONMENTS = ("local", "staging", "development")

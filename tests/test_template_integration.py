@@ -140,6 +140,32 @@ class TestGeneratedTemplateMypy:
         assert result.returncode == 0, f"Mypy failed:\n{result.stdout}\n{result.stderr}"
 
 
+class TestGeneratedTemplateAgentsFolder:
+    """Test that agents folder is conditionally created based on enable_ai_agent."""
+
+    @pytest.mark.slow
+    def test_agents_folder_not_created_when_disabled(self, generated_project_minimal: Path) -> None:
+        """Test that agents folder is not present when AI agent is disabled."""
+        agents_path = generated_project_minimal / "backend" / "app" / "agents"
+        assert not agents_path.exists(), "agents/ folder should not exist when AI is disabled"
+
+    @pytest.mark.slow
+    def test_agents_folder_created_when_enabled(self, generated_project_full: Path) -> None:
+        """Test that agents folder exists when AI agent is enabled."""
+        agents_path = generated_project_full / "backend" / "app" / "agents"
+        assert agents_path.exists(), "agents/ folder should exist when AI is enabled"
+        assert (agents_path / "__init__.py").exists()
+        assert (agents_path / "assistant.py").exists()
+
+    @pytest.mark.slow
+    def test_agent_route_not_created_when_disabled(self, generated_project_minimal: Path) -> None:
+        """Test that agent API route is not present when AI agent is disabled."""
+        agent_route = (
+            generated_project_minimal / "backend" / "app" / "api" / "routes" / "v1" / "agent.py"
+        )
+        assert not agent_route.exists(), "agent.py route should not exist when AI is disabled"
+
+
 class TestGeneratedTemplateSyntax:
     """Test that generated Python files have valid syntax."""
 

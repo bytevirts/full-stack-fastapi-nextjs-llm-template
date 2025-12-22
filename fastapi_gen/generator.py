@@ -7,9 +7,37 @@ from cookiecutter.main import cookiecutter
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from .config import FrontendType, ProjectConfig
+from .config import DatabaseType, FrontendType, ProjectConfig
 
 console = Console()
+
+
+def _get_database_setup_commands(database: DatabaseType) -> list[str]:
+    """Get database-specific setup commands for post-generation messages.
+
+    Args:
+        database: The database type selected by the user
+
+    Returns:
+        List of command strings to display
+    """
+    if database == DatabaseType.SQLITE:
+        return [
+            "# SQLite database will be created automatically at first run",
+            "make db-migrate       # Create initial migration",
+            "make db-upgrade       # Apply migrations",
+        ]
+    elif database == DatabaseType.MONGODB:
+        return [
+            "make docker-mongo     # Start MongoDB container",
+            "# Or configure MongoDB Atlas connection in .env",
+        ]
+    else:  # PostgreSQL
+        return [
+            "make docker-db        # Start PostgreSQL container",
+            "make db-migrate       # Create initial migration",
+            "make db-upgrade       # Apply migrations",
+        ]
 
 
 def _find_template_dir() -> Path:
@@ -110,12 +138,12 @@ def post_generation_tasks(project_path: Path, config: ProjectConfig) -> None:
         console.print()
         if config.generate_env:
             console.print(f"[bold]{step}. Environment:[/]")
-            console.print("  .env files are pre-configured for development")
+            console.print("  backend/.env and frontend/.env.local are pre-configured")
             console.print("  # Review and update settings as needed")
         else:
             console.print(f"[bold]{step}. Configure environment:[/]")
-            console.print("  cp backend/.env.example backend/.env")
-            console.print("  cp frontend/.env.example frontend/.env.local")
+            console.print("  cd backend && cp .env.example .env")
+            console.print("  cd frontend && cp .env.example .env.local")
             console.print("  # Edit with your settings (database, secrets, etc.)")
         step += 1
         console.print()
@@ -125,9 +153,8 @@ def post_generation_tasks(project_path: Path, config: ProjectConfig) -> None:
         if config.database.value != "none":
             console.print()
             console.print(f"[bold]{step}. Database setup:[/]")
-            console.print("  make docker-db        # Start PostgreSQL")
-            console.print("  make db-migrate       # Create initial migration")
-            console.print("  make db-upgrade       # Apply migrations")
+            for cmd in _get_database_setup_commands(config.database):
+                console.print(f"  {cmd}")
             step += 1
         console.print()
         console.print(f"[bold]{step}. Run backend:[/]")
@@ -143,12 +170,12 @@ def post_generation_tasks(project_path: Path, config: ProjectConfig) -> None:
         console.print()
         if config.generate_env:
             console.print(f"[bold]{step}. Environment:[/]")
-            console.print("  .env file is pre-configured for development")
+            console.print("  backend/.env is pre-configured for development")
             console.print("  # Review and update settings as needed")
         else:
             console.print(f"[bold]{step}. Configure environment:[/]")
             console.print("  cd backend && cp .env.example .env")
-            console.print("  # Edit .env with your settings")
+            console.print("  # Edit backend/.env with your settings")
         step += 1
         console.print()
         console.print(f"[bold]{step}. Install dependencies:[/]")
@@ -157,9 +184,8 @@ def post_generation_tasks(project_path: Path, config: ProjectConfig) -> None:
         if config.database.value != "none":
             console.print()
             console.print(f"[bold]{step}. Database setup:[/]")
-            console.print("  make docker-db        # Start PostgreSQL")
-            console.print("  make db-migrate       # Create initial migration")
-            console.print("  make db-upgrade       # Apply migrations")
+            for cmd in _get_database_setup_commands(config.database):
+                console.print(f"  {cmd}")
             step += 1
         console.print()
         console.print(f"[bold]{step}. Run server:[/]")
@@ -168,7 +194,7 @@ def post_generation_tasks(project_path: Path, config: ProjectConfig) -> None:
     console.print()
 
     if config.enable_logfire:
-        console.print("[dim]To enable Logfire, set LOGFIRE_TOKEN in your .env file[/]")
+        console.print("[dim]To enable Logfire, set LOGFIRE_TOKEN in backend/.env[/]")
         console.print("[dim]Get your token at: https://logfire.pydantic.dev[/]")
         console.print()
 

@@ -1,9 +1,21 @@
 """Configuration models for project generation."""
 
+from datetime import UTC, datetime
 from enum import Enum
+from importlib.metadata import version
 from typing import Any
 
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, EmailStr, Field, computed_field, model_validator
+
+GENERATOR_NAME = "fastapi-fullstack"
+
+
+def get_generator_version() -> str:
+    """Get the current generator version from package metadata."""
+    try:
+        return version(GENERATOR_NAME)
+    except Exception:
+        return "0.0.0"
 
 
 class DatabaseType(str, Enum):
@@ -79,6 +91,21 @@ class AIFrameworkType(str, Enum):
     LANGCHAIN = "langchain"
 
 
+class LLMProviderType(str, Enum):
+    """Supported LLM providers."""
+
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    OPENROUTER = "openrouter"
+
+
+class RateLimitStorageType(str, Enum):
+    """Rate limiting storage backends."""
+
+    MEMORY = "memory"
+    REDIS = "redis"
+
+
 class LogfireFeatures(BaseModel):
     """Logfire instrumentation features."""
 
@@ -97,7 +124,7 @@ class ProjectConfig(BaseModel):
     project_description: str = "A FastAPI project"
 
     author_name: str = "Your Name"
-    author_email: str = "your@email.com"
+    author_email: EmailStr = "your@email.com"
 
     # Database
     database: DatabaseType = DatabaseType.POSTGRESQL
@@ -123,6 +150,7 @@ class ProjectConfig(BaseModel):
     enable_rate_limiting: bool = False
     rate_limit_requests: int = 100
     rate_limit_period: int = 60
+    rate_limit_storage: RateLimitStorageType = RateLimitStorageType.MEMORY
     enable_pagination: bool = True
     enable_sentry: bool = False
     enable_prometheus: bool = False
@@ -133,6 +161,7 @@ class ProjectConfig(BaseModel):
     enable_file_storage: bool = False
     enable_ai_agent: bool = False
     ai_framework: AIFrameworkType = AIFrameworkType.PYDANTIC_AI
+    llm_provider: LLMProviderType = LLMProviderType.OPENAI
     enable_conversation_persistence: bool = False
     enable_webhooks: bool = False
     websocket_auth: WebSocketAuthType = WebSocketAuthType.NONE
@@ -170,9 +199,49 @@ class ProjectConfig(BaseModel):
         """Return project slug (underscores instead of hyphens)."""
         return self.project_name.replace("-", "_")
 
+    @model_validator(mode="after")
+    def validate_option_combinations(self) -> "ProjectConfig":
+        """Validate that option combinations are valid.
+
+        Raises ValueError for invalid combinations:
+        - Admin panel requires a database (PostgreSQL or SQLite)
+        - Admin panel (SQLAdmin) does not support MongoDB
+        - Caching requires Redis to be enabled
+        - Session management requires a database
+        - Conversation persistence requires a database
+        """
+        if self.enable_admin_panel and self.database == DatabaseType.NONE:
+            raise ValueError("Admin panel requires a database")
+        if self.enable_admin_panel and self.database == DatabaseType.MONGODB:
+            raise ValueError("Admin panel (SQLAdmin) requires PostgreSQL or SQLite")
+        if self.enable_caching and not self.enable_redis:
+            raise ValueError("Caching requires Redis to be enabled")
+        if self.enable_session_management and self.database == DatabaseType.NONE:
+            raise ValueError("Session management requires a database")
+        if self.enable_conversation_persistence and self.database == DatabaseType.NONE:
+            raise ValueError("Conversation persistence requires a database")
+        if (
+            self.enable_ai_agent
+            and self.ai_framework == AIFrameworkType.LANGCHAIN
+            and self.llm_provider == LLMProviderType.OPENROUTER
+        ):
+            raise ValueError("OpenRouter is not supported with LangChain")
+        if (
+            self.enable_rate_limiting
+            and self.rate_limit_storage == RateLimitStorageType.REDIS
+            and not self.enable_redis
+        ):
+            raise ValueError("Rate limiting with Redis storage requires Redis to be enabled")
+        return self
+
     def to_cookiecutter_context(self) -> dict[str, Any]:
         """Convert config to cookiecutter context."""
         return {
+            # Generator metadata
+            "generator_name": GENERATOR_NAME,
+            "generator_version": get_generator_version(),
+            "generated_at": datetime.now(UTC).isoformat(),
+            # Project info
             "project_name": self.project_name,
             "project_slug": self.project_slug,
             "project_description": self.project_description,
@@ -216,6 +285,9 @@ class ProjectConfig(BaseModel):
             "enable_rate_limiting": self.enable_rate_limiting,
             "rate_limit_requests": self.rate_limit_requests,
             "rate_limit_period": self.rate_limit_period,
+            "rate_limit_storage": self.rate_limit_storage.value,
+            "rate_limit_storage_memory": self.rate_limit_storage == RateLimitStorageType.MEMORY,
+            "rate_limit_storage_redis": self.rate_limit_storage == RateLimitStorageType.REDIS,
             "enable_pagination": self.enable_pagination,
             "enable_sentry": self.enable_sentry,
             "enable_prometheus": self.enable_prometheus,
@@ -232,6 +304,10 @@ class ProjectConfig(BaseModel):
             "ai_framework": self.ai_framework.value,
             "use_pydantic_ai": self.ai_framework == AIFrameworkType.PYDANTIC_AI,
             "use_langchain": self.ai_framework == AIFrameworkType.LANGCHAIN,
+            "llm_provider": self.llm_provider.value,
+            "use_openai": self.llm_provider == LLMProviderType.OPENAI,
+            "use_anthropic": self.llm_provider == LLMProviderType.ANTHROPIC,
+            "use_openrouter": self.llm_provider == LLMProviderType.OPENROUTER,
             "enable_conversation_persistence": self.enable_conversation_persistence,
             "enable_webhooks": self.enable_webhooks,
             "websocket_auth": self.websocket_auth.value,

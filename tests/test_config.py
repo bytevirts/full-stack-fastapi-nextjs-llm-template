@@ -4,12 +4,15 @@ import pytest
 from pydantic import ValidationError
 
 from fastapi_gen.config import (
+    AIFrameworkType,
     AuthType,
     BackgroundTaskType,
     CIType,
     DatabaseType,
+    LLMProviderType,
     LogfireFeatures,
     ProjectConfig,
+    RateLimitStorageType,
 )
 
 
@@ -42,6 +45,11 @@ class TestEnums:
         assert CIType.GITHUB.value == "github"
         assert CIType.GITLAB.value == "gitlab"
         assert CIType.NONE.value == "none"
+
+    def test_rate_limit_storage_type_values(self) -> None:
+        """Test RateLimitStorageType enum values."""
+        assert RateLimitStorageType.MEMORY.value == "memory"
+        assert RateLimitStorageType.REDIS.value == "redis"
 
 
 class TestLogfireFeatures:
@@ -365,3 +373,228 @@ class TestCookiecutterContext:
         assert context["logfire_redis"] is True
         assert context["logfire_celery"] is False
         assert context["logfire_httpx"] is True
+
+
+class TestOptionCombinationValidation:
+    """Tests for invalid option combination validation."""
+
+    def test_admin_panel_requires_database(self) -> None:
+        """Test that admin panel cannot be enabled without a database."""
+        with pytest.raises(ValidationError, match="Admin panel requires a database"):
+            ProjectConfig(
+                project_name="test",
+                database=DatabaseType.NONE,
+                enable_admin_panel=True,
+            )
+
+    def test_admin_panel_not_supported_with_mongodb(self) -> None:
+        """Test that admin panel (SQLAdmin) does not support MongoDB."""
+        with pytest.raises(
+            ValidationError, match="Admin panel \\(SQLAdmin\\) requires PostgreSQL or SQLite"
+        ):
+            ProjectConfig(
+                project_name="test",
+                database=DatabaseType.MONGODB,
+                enable_admin_panel=True,
+            )
+
+    def test_caching_requires_redis(self) -> None:
+        """Test that caching requires Redis to be enabled."""
+        with pytest.raises(ValidationError, match="Caching requires Redis to be enabled"):
+            ProjectConfig(
+                project_name="test",
+                enable_caching=True,
+                enable_redis=False,
+            )
+
+    def test_session_management_requires_database(self) -> None:
+        """Test that session management requires a database."""
+        with pytest.raises(ValidationError, match="Session management requires a database"):
+            ProjectConfig(
+                project_name="test",
+                database=DatabaseType.NONE,
+                enable_session_management=True,
+            )
+
+    def test_conversation_persistence_requires_database(self) -> None:
+        """Test that conversation persistence requires a database."""
+        with pytest.raises(ValidationError, match="Conversation persistence requires a database"):
+            ProjectConfig(
+                project_name="test",
+                database=DatabaseType.NONE,
+                enable_conversation_persistence=True,
+            )
+
+    def test_admin_panel_with_postgresql_is_valid(self) -> None:
+        """Test that admin panel with PostgreSQL is valid."""
+        config = ProjectConfig(
+            project_name="test",
+            database=DatabaseType.POSTGRESQL,
+            enable_admin_panel=True,
+        )
+        assert config.enable_admin_panel is True
+        assert config.database == DatabaseType.POSTGRESQL
+
+    def test_admin_panel_with_sqlite_is_valid(self) -> None:
+        """Test that admin panel with SQLite is valid."""
+        config = ProjectConfig(
+            project_name="test",
+            database=DatabaseType.SQLITE,
+            enable_admin_panel=True,
+        )
+        assert config.enable_admin_panel is True
+        assert config.database == DatabaseType.SQLITE
+
+    def test_caching_with_redis_is_valid(self) -> None:
+        """Test that caching with Redis enabled is valid."""
+        config = ProjectConfig(
+            project_name="test",
+            enable_caching=True,
+            enable_redis=True,
+        )
+        assert config.enable_caching is True
+        assert config.enable_redis is True
+
+    def test_session_management_with_database_is_valid(self) -> None:
+        """Test that session management with a database is valid."""
+        config = ProjectConfig(
+            project_name="test",
+            database=DatabaseType.POSTGRESQL,
+            enable_session_management=True,
+        )
+        assert config.enable_session_management is True
+
+    def test_conversation_persistence_with_database_is_valid(self) -> None:
+        """Test that conversation persistence with a database is valid."""
+        config = ProjectConfig(
+            project_name="test",
+            database=DatabaseType.POSTGRESQL,
+            enable_conversation_persistence=True,
+        )
+        assert config.enable_conversation_persistence is True
+
+    def test_openrouter_with_langchain_raises_validation_error(self) -> None:
+        """Test that OpenRouter + LangChain combination is rejected."""
+        with pytest.raises(ValidationError) as exc_info:
+            ProjectConfig(
+                project_name="test",
+                enable_ai_agent=True,
+                llm_provider=LLMProviderType.OPENROUTER,
+                ai_framework=AIFrameworkType.LANGCHAIN,
+            )
+        assert "OpenRouter is not supported with LangChain" in str(exc_info.value)
+
+    def test_openrouter_with_pydanticai_is_valid(self) -> None:
+        """Test that OpenRouter + PydanticAI combination is accepted."""
+        config = ProjectConfig(
+            project_name="test",
+            enable_ai_agent=True,
+            llm_provider=LLMProviderType.OPENROUTER,
+            ai_framework=AIFrameworkType.PYDANTIC_AI,
+        )
+        assert config.llm_provider == LLMProviderType.OPENROUTER
+        assert config.ai_framework == AIFrameworkType.PYDANTIC_AI
+
+
+class TestEmailValidation:
+    """Tests for author_email validation."""
+
+    def test_valid_email_accepted(self) -> None:
+        """Test valid email addresses are accepted."""
+        valid_emails = [
+            "user@example.com",
+            "user.name@example.com",
+            "user+tag@example.com",
+            "user@subdomain.example.com",
+            "user123@example.co.uk",
+        ]
+        for email in valid_emails:
+            config = ProjectConfig(project_name="test", author_email=email)
+            assert config.author_email == email
+
+    def test_invalid_email_raises_error(self) -> None:
+        """Test invalid email addresses raise ValidationError."""
+        invalid_emails = [
+            "not-an-email",
+            "missing@tld",
+            "@no-local-part.com",
+            "spaces in@email.com",
+            "",
+        ]
+        for email in invalid_emails:
+            with pytest.raises(ValidationError):
+                ProjectConfig(project_name="test", author_email=email)
+
+
+class TestRateLimitConfig:
+    """Tests for rate limit configuration."""
+
+    def test_default_rate_limit_values(self) -> None:
+        """Test default rate limit configuration values."""
+        config = ProjectConfig(project_name="test")
+        assert config.rate_limit_requests == 100
+        assert config.rate_limit_period == 60
+        assert config.rate_limit_storage == RateLimitStorageType.MEMORY
+
+    def test_custom_rate_limit_values(self) -> None:
+        """Test custom rate limit configuration values."""
+        config = ProjectConfig(
+            project_name="test",
+            enable_rate_limiting=True,
+            rate_limit_requests=50,
+            rate_limit_period=30,
+            rate_limit_storage=RateLimitStorageType.MEMORY,
+        )
+        assert config.rate_limit_requests == 50
+        assert config.rate_limit_period == 30
+        assert config.rate_limit_storage == RateLimitStorageType.MEMORY
+
+    def test_rate_limit_memory_storage_context_flags(self) -> None:
+        """Test rate limit memory storage sets correct context flags."""
+        config = ProjectConfig(
+            project_name="test",
+            enable_rate_limiting=True,
+            rate_limit_storage=RateLimitStorageType.MEMORY,
+        )
+        context = config.to_cookiecutter_context()
+
+        assert context["rate_limit_storage"] == "memory"
+        assert context["rate_limit_storage_memory"] is True
+        assert context["rate_limit_storage_redis"] is False
+
+    def test_rate_limit_redis_storage_context_flags(self) -> None:
+        """Test rate limit Redis storage sets correct context flags."""
+        config = ProjectConfig(
+            project_name="test",
+            enable_rate_limiting=True,
+            enable_redis=True,
+            rate_limit_storage=RateLimitStorageType.REDIS,
+        )
+        context = config.to_cookiecutter_context()
+
+        assert context["rate_limit_storage"] == "redis"
+        assert context["rate_limit_storage_memory"] is False
+        assert context["rate_limit_storage_redis"] is True
+
+    def test_rate_limit_redis_storage_requires_redis(self) -> None:
+        """Test that Redis storage for rate limiting requires Redis to be enabled."""
+        with pytest.raises(
+            ValidationError, match="Rate limiting with Redis storage requires Redis to be enabled"
+        ):
+            ProjectConfig(
+                project_name="test",
+                enable_rate_limiting=True,
+                enable_redis=False,
+                rate_limit_storage=RateLimitStorageType.REDIS,
+            )
+
+    def test_rate_limit_redis_storage_with_redis_is_valid(self) -> None:
+        """Test that Redis storage with Redis enabled is valid."""
+        config = ProjectConfig(
+            project_name="test",
+            enable_rate_limiting=True,
+            enable_redis=True,
+            rate_limit_storage=RateLimitStorageType.REDIS,
+        )
+        assert config.rate_limit_storage == RateLimitStorageType.REDIS
+        assert config.enable_redis is True

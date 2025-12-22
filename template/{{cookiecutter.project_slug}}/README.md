@@ -126,32 +126,153 @@ fastapi-fullstack create my_ai_app \
   --database postgresql \
   --auth jwt \
   --frontend nextjs
+
+# Use presets for common setups
+fastapi-fullstack create my_ai_app --preset production   # Full production setup
+fastapi-fullstack create my_ai_app --preset ai-agent     # AI agent with streaming
+
+# Minimal project (no extras)
+fastapi-fullstack create my_ai_app --minimal
 ```
 
 ### Start Development
 
+#### Step 1: Install Dependencies
+
 ```bash
 cd my_ai_app
+make install
+```
 
-# Backend
-cd backend
-uv sync
-cp .env.example .env
-alembic upgrade head
+#### Step 2: Start the Database
+{%- if cookiecutter.use_postgresql %}
 
-# Create admin user
-uv run my_ai_app user create --email admin@example.com --password secret123 --superuser
+```bash
+# Start PostgreSQL with Docker
+make docker-db
 
-# Start server
-uv run uvicorn app.main:app --reload
+# Wait a few seconds for the database to be ready
+```
+{%- elif cookiecutter.use_mongodb %}
 
-# Frontend (new terminal)
+```bash
+# Start MongoDB with Docker
+docker-compose up -d mongo
+```
+{%- endif %}
+
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
+
+#### Step 3: Create and Apply Database Migrations
+
+The project uses Alembic for database migrations. After generating a new project, you need to create the initial migration:
+
+```bash
+# Create the initial migration (generates migration file based on your models)
+make db-migrate
+# When prompted, enter a message like: "Initial migration"
+
+# Apply the migration to create tables
+make db-upgrade
+```
+
+> **Note:** Run `make db-migrate` whenever you modify database models to generate new migrations.
+{%- endif %}
+
+{%- if cookiecutter.use_jwt %}
+
+#### Step 4: Create Admin User
+
+```bash
+# Create an admin user (required for SQLAdmin panel access)
+make create-admin
+# Enter email and password when prompted
+```
+{%- endif %}
+
+#### Step 5: Start the Backend
+
+```bash
+make run
+```
+
+The API will be available at:
+- API: http://localhost:{{ cookiecutter.backend_port }}
+- Docs: http://localhost:{{ cookiecutter.backend_port }}/docs
+{%- if cookiecutter.enable_admin_panel %}
+- Admin Panel: http://localhost:{{ cookiecutter.backend_port }}/admin
+{%- endif %}
+
+{%- if cookiecutter.use_frontend %}
+
+#### Step 6: Start the Frontend (separate terminal)
+
+```bash
 cd frontend
 bun install
 bun dev
 ```
 
-> **Note:** The admin user is required to access the SQLAdmin panel at `/admin`. Use the `--superuser` flag to grant full admin privileges.
+Frontend: http://localhost:{{ cookiecutter.frontend_port }}
+{%- endif %}
+
+---
+
+### Quick Start with Docker
+
+Alternatively, run everything with Docker:
+
+```bash
+# Start all backend services (API, database, Redis, etc.)
+make docker-up
+
+{%- if cookiecutter.use_frontend %}
+# Start frontend (separate command)
+make docker-frontend
+{%- endif %}
+```
+
+---
+
+### Using the Project CLI
+
+Each generated project includes a CLI tool named `{{ cookiecutter.project_slug }}`. Run commands from the `backend/` directory:
+
+```bash
+cd backend
+
+# Server commands
+uv run {{ cookiecutter.project_slug }} server run --reload     # Start dev server
+uv run {{ cookiecutter.project_slug }} server routes           # Show all routes
+
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
+# Database commands
+uv run {{ cookiecutter.project_slug }} db migrate -m "message" # Create migration
+uv run {{ cookiecutter.project_slug }} db upgrade              # Apply migrations
+uv run {{ cookiecutter.project_slug }} db downgrade            # Rollback migration
+{%- endif %}
+
+{%- if cookiecutter.use_jwt %}
+# User commands
+uv run {{ cookiecutter.project_slug }} user create-admin       # Create admin user
+uv run {{ cookiecutter.project_slug }} user create             # Create regular user
+uv run {{ cookiecutter.project_slug }} user list               # List all users
+{%- endif %}
+```
+
+Or use Makefile shortcuts from the project root:
+
+```bash
+make help          # Show all available commands
+make run           # Start dev server
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
+make db-migrate    # Create new migration
+make db-upgrade    # Apply migrations
+{%- endif %}
+{%- if cookiecutter.use_jwt %}
+make create-admin  # Create admin user
+{%- endif %}
+```
 
 **Access:**
 - API: http://localhost:8000
@@ -255,15 +376,31 @@ See [Architecture Documentation](https://github.com/vstorm-co/full-stack-fastapi
 
 ## 🤖 AI Agent
 
-Choose between **PydanticAI** or **LangChain** when generating your project:
+Choose between **PydanticAI** or **LangChain** when generating your project, with support for multiple LLM providers:
 
 ```bash
-# PydanticAI (default)
+# PydanticAI with OpenAI (default)
 fastapi-fullstack create my_app --ai-agent --ai-framework pydantic_ai
 
-# LangChain
+# PydanticAI with Anthropic
+fastapi-fullstack create my_app --ai-agent --ai-framework pydantic_ai --llm-provider anthropic
+
+# PydanticAI with OpenRouter
+fastapi-fullstack create my_app --ai-agent --ai-framework pydantic_ai --llm-provider openrouter
+
+# LangChain with OpenAI
 fastapi-fullstack create my_app --ai-agent --ai-framework langchain
+
+# LangChain with Anthropic
+fastapi-fullstack create my_app --ai-agent --ai-framework langchain --llm-provider anthropic
 ```
+
+### Supported LLM Providers
+
+| Framework | OpenAI | Anthropic | OpenRouter |
+|-----------|:------:|:---------:|:----------:|
+| **PydanticAI** | ✓ | ✓ | ✓ |
+| **LangChain** | ✓ | ✓ | - |
 
 ### PydanticAI Integration
 
@@ -442,24 +579,30 @@ For more details, see [Logfire Documentation](https://logfire.pydantic.dev/docs/
 
 ## 🛠️ Django-style CLI
 
-Each generated project includes a powerful CLI inspired by Django's management commands:
+Each generated project includes a powerful CLI inspired by Django's management commands. The CLI name matches your project slug (e.g., if your project is `my_app`, the CLI command is `uv run my_app`).
 
 ### Built-in Commands
 
 ```bash
+# Run commands from the backend directory:
+cd backend
+
 # Server
-my_app server run --reload
-my_app server routes
+uv run {{ cookiecutter.project_slug }} server run --reload
+uv run {{ cookiecutter.project_slug }} server routes
 
 # Database (Alembic wrapper)
-my_app db init
-my_app db migrate -m "Add users"
-my_app db upgrade
+uv run {{ cookiecutter.project_slug }} db init
+uv run {{ cookiecutter.project_slug }} db migrate -m "Add users"
+uv run {{ cookiecutter.project_slug }} db upgrade
 
 # Users
-my_app user create --email admin@example.com --superuser
-my_app user list
+uv run {{ cookiecutter.project_slug }} user create-admin       # Create admin (interactive)
+uv run {{ cookiecutter.project_slug }} user create             # Create user (interactive)
+uv run {{ cookiecutter.project_slug }} user list               # List all users
 ```
+
+> **Tip:** Use `make` commands as shortcuts - they handle the `uv run` prefix and directory automatically. Run `make help` to see all available commands.
 
 ### Custom Commands
 
@@ -486,8 +629,8 @@ def seed_database(count: int, dry_run: bool):
 Commands are **automatically discovered** from `app/commands/` - just create a file and use the `@command` decorator.
 
 ```bash
-my_app cmd seed --count 100
-my_app cmd seed --dry-run
+uv run {{ cookiecutter.project_slug }} cmd seed --count 100
+uv run {{ cookiecutter.project_slug }} cmd seed --dry-run
 ```
 
 ---
@@ -508,7 +651,7 @@ my_project/
 │   │   ├── schemas/             # Pydantic schemas
 │   │   ├── repositories/        # Data access layer
 │   │   ├── services/            # Business logic
-│   │   ├── agents/              # AI agents (PydanticAI or LangChain)
+│   │   ├── agents/              # AI agents with centralized prompts
 │   │   ├── commands/            # Django-style CLI commands
 │   │   └── worker/              # Background tasks
 │   ├── cli/                     # Project CLI
@@ -526,6 +669,14 @@ my_project/
 └── README.md
 ```
 
+Generated projects include version metadata in `pyproject.toml` for tracking:
+
+```toml
+[tool.fastapi-fullstack]
+generator_version = "0.1.5"
+generated_at = "2024-12-21T10:30:00+00:00"
+```
+
 ---
 
 ## ⚙️ Configuration Options
@@ -538,8 +689,17 @@ my_project/
 | **Auth** | `jwt`, `api_key`, `both`, `none` | JWT includes user management |
 | **OAuth** | `none`, `google` | Social login |
 | **AI Framework** | `pydantic_ai`, `langchain` | Choose your AI agent framework |
+| **LLM Provider** | `openai`, `anthropic`, `openrouter` | OpenRouter only with PydanticAI |
 | **Background Tasks** | `none`, `celery`, `taskiq`, `arq` | Distributed queues |
 | **Frontend** | `none`, `nextjs` | Next.js 15 + React 19 |
+
+### Presets
+
+| Preset | Description |
+|--------|-------------|
+| `--preset production` | Full production setup with Redis, Sentry, Kubernetes, Prometheus |
+| `--preset ai-agent` | AI agent with WebSocket streaming and conversation persistence |
+| `--minimal` | Minimal project with no extras |
 
 ### Integrations
 
@@ -576,13 +736,7 @@ fastapi-fullstack new
 
 ## Star History
 
-<a href="https://www.star-history.com/#vstorm-co/full-stack-fastapi-nextjs-llm-template&type=Date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=vstorm-co/full-stack-fastapi-nextjs-llm-template&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=vstorm-co/full-stack-fastapi-nextjs-llm-template&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=vstorm-co/full-stack-fastapi-nextjs-llm-template&type=Date" />
- </picture>
-</a>
+[![Star History Chart](https://api.star-history.com/svg?repos=vstorm-co/full-stack-fastapi-nextjs-llm-template&type=date&legend=top-left)](https://www.star-history.com/#vstorm-co/full-stack-fastapi-nextjs-llm-template&type=date&legend=top-left)
 
 ---
 

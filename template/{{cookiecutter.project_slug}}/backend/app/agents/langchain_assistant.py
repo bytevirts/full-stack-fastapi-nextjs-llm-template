@@ -10,8 +10,14 @@ from typing import Any, TypedDict
 from langchain.agents import create_agent
 from langchain.messages import AIMessage, HumanMessage, SystemMessage
 from langchain.tools import tool
+{%- if cookiecutter.use_openai %}
 from langchain_openai import ChatOpenAI
+{%- endif %}
+{%- if cookiecutter.use_anthropic %}
+from langchain_anthropic import ChatAnthropic
+{%- endif %}
 
+from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
 from app.agents.tools import get_current_datetime
 from app.core.config import settings
 
@@ -57,21 +63,30 @@ class LangChainAssistant:
         self,
         model_name: str | None = None,
         temperature: float | None = None,
-        system_prompt: str = "You are a helpful assistant.",
+        system_prompt: str | None = None,
     ):
         self.model_name = model_name or settings.AI_MODEL
         self.temperature = temperature or settings.AI_TEMPERATURE
-        self.system_prompt = system_prompt
+        self.system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
         self._agent = None
         self._tools = [current_datetime]
 
     def _create_agent(self):
         """Create and configure the LangChain agent."""
+{%- if cookiecutter.use_openai %}
         model = ChatOpenAI(
             model=self.model_name,
             temperature=self.temperature,
             api_key=settings.OPENAI_API_KEY,
         )
+{%- endif %}
+{%- if cookiecutter.use_anthropic %}
+        model = ChatAnthropic(
+            model=self.model_name,
+            temperature=self.temperature,
+            api_key=settings.ANTHROPIC_API_KEY,
+        )
+{%- endif %}
 
         agent = create_agent(
             model=model,

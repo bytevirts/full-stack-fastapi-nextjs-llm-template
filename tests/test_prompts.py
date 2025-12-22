@@ -13,12 +13,18 @@ from fastapi_gen.config import (
     CIType,
     DatabaseType,
     FrontendType,
+    LLMProviderType,
     LogfireFeatures,
     OAuthProvider,
+    RateLimitStorageType,
     WebSocketAuthType,
 )
 from fastapi_gen.prompts import (
     _check_cancelled,
+    _normalize_project_name,
+    _validate_email,
+    _validate_positive_integer,
+    _validate_project_name,
     confirm_generation,
     prompt_admin_config,
     prompt_auth,
@@ -33,6 +39,7 @@ from fastapi_gen.prompts import (
     prompt_oauth,
     prompt_ports,
     prompt_python_version,
+    prompt_rate_limit_config,
     prompt_websocket_auth,
     run_interactive_prompts,
     show_header,
@@ -53,6 +60,132 @@ class TestCheckCancelled:
         """Test KeyboardInterrupt is raised when value is None."""
         with pytest.raises(KeyboardInterrupt):
             _check_cancelled(None)
+
+
+class TestValidateProjectName:
+    """Tests for _validate_project_name helper."""
+
+    def test_valid_lowercase_name(self) -> None:
+        """Test valid lowercase name returns True."""
+        assert _validate_project_name("myproject") is True
+        assert _validate_project_name("my_project") is True
+        assert _validate_project_name("project123") is True
+
+    def test_valid_uppercase_name(self) -> None:
+        """Test valid uppercase name returns True (will be normalized later)."""
+        assert _validate_project_name("MyProject") is True
+        assert _validate_project_name("MY_PROJECT") is True
+
+    def test_valid_name_with_spaces(self) -> None:
+        """Test valid name with spaces returns True."""
+        assert _validate_project_name("my project") is True
+        assert _validate_project_name("My Project") is True
+
+    def test_valid_name_with_dashes(self) -> None:
+        """Test valid name with dashes returns True."""
+        assert _validate_project_name("my-project") is True
+        assert _validate_project_name("My-Project") is True
+
+    def test_invalid_empty_name(self) -> None:
+        """Test empty name returns error message."""
+        result = _validate_project_name("")
+        assert result == "Project name cannot be empty"
+
+    def test_invalid_starts_with_number(self) -> None:
+        """Test name starting with number returns error message."""
+        result = _validate_project_name("123project")
+        assert result == "Project name must start with a letter"
+
+    def test_invalid_starts_with_underscore(self) -> None:
+        """Test name starting with underscore returns error message."""
+        result = _validate_project_name("_project")
+        assert result == "Project name must start with a letter"
+
+    def test_invalid_special_characters(self) -> None:
+        """Test name with special characters returns error message."""
+        result = _validate_project_name("my@project")
+        assert "can only contain" in result
+        result = _validate_project_name("my.project")
+        assert "can only contain" in result
+        result = _validate_project_name("my/project")
+        assert "can only contain" in result
+
+
+class TestNormalizeProjectName:
+    """Tests for _normalize_project_name helper."""
+
+    def test_lowercase_conversion(self) -> None:
+        """Test uppercase is converted to lowercase."""
+        assert _normalize_project_name("MyProject") == "myproject"
+        assert _normalize_project_name("MY_PROJECT") == "my_project"
+
+    def test_space_to_underscore(self) -> None:
+        """Test spaces are converted to underscores."""
+        assert _normalize_project_name("my project") == "my_project"
+        assert _normalize_project_name("My Project") == "my_project"
+
+    def test_dash_to_underscore(self) -> None:
+        """Test dashes are converted to underscores."""
+        assert _normalize_project_name("my-project") == "my_project"
+        assert _normalize_project_name("My-Project") == "my_project"
+
+    def test_mixed_conversion(self) -> None:
+        """Test mixed case, spaces, and dashes are all normalized."""
+        assert _normalize_project_name("My Cool-Project") == "my_cool_project"
+        assert _normalize_project_name("MY COOL-PROJECT") == "my_cool_project"
+
+    def test_already_normalized(self) -> None:
+        """Test already normalized name is unchanged."""
+        assert _normalize_project_name("my_project") == "my_project"
+        assert _normalize_project_name("project123") == "project123"
+
+
+class TestValidateEmail:
+    """Tests for _validate_email helper."""
+
+    def test_valid_email_returns_true(self) -> None:
+        """Test valid email returns True."""
+        assert _validate_email("user@example.com") is True
+        assert _validate_email("user.name@example.com") is True
+        assert _validate_email("user+tag@example.com") is True
+        assert _validate_email("user@subdomain.example.com") is True
+        assert _validate_email("user123@example.co.uk") is True
+
+    def test_empty_email_returns_error(self) -> None:
+        """Test empty email returns error message."""
+        result = _validate_email("")
+        assert result == "Email cannot be empty"
+
+    def test_invalid_email_returns_error(self) -> None:
+        """Test invalid email returns error message."""
+        assert _validate_email("not-an-email") == "Please enter a valid email address"
+        assert _validate_email("missing@tld") == "Please enter a valid email address"
+        assert _validate_email("@no-local-part.com") == "Please enter a valid email address"
+        assert _validate_email("spaces in@email.com") == "Please enter a valid email address"
+
+
+class TestValidatePositiveInteger:
+    """Tests for _validate_positive_integer helper."""
+
+    def test_valid_positive_integers(self) -> None:
+        """Test valid positive integers return True."""
+        assert _validate_positive_integer("1") is True
+        assert _validate_positive_integer("100") is True
+        assert _validate_positive_integer("999999") is True
+
+    def test_empty_value_returns_error(self) -> None:
+        """Test empty value returns error message."""
+        assert _validate_positive_integer("") == "Value cannot be empty"
+
+    def test_non_digit_returns_error(self) -> None:
+        """Test non-digit input returns error message."""
+        assert _validate_positive_integer("abc") == "Must be a positive number"
+        assert _validate_positive_integer("12.5") == "Must be a positive number"
+        assert _validate_positive_integer("-10") == "Must be a positive number"
+
+    def test_zero_returns_error(self) -> None:
+        """Test zero returns error message."""
+        assert _validate_positive_integer("0") == "Must be greater than 0"
 
 
 class TestShowHeader:
@@ -87,6 +220,54 @@ class TestPromptBasicInfo:
             "author_name": "John Doe",
             "author_email": "john@example.com",
         }
+
+    @patch("fastapi_gen.prompts.questionary")
+    def test_normalizes_project_name_with_uppercase(self, mock_questionary: MagicMock) -> None:
+        """Test project name with uppercase is normalized to lowercase."""
+        mock_text = MagicMock()
+        mock_text.ask.side_effect = [
+            "MyProject",
+            "My description",
+            "John Doe",
+            "john@example.com",
+        ]
+        mock_questionary.text.return_value = mock_text
+
+        result = prompt_basic_info()
+
+        assert result["project_name"] == "myproject"
+
+    @patch("fastapi_gen.prompts.questionary")
+    def test_normalizes_project_name_with_spaces(self, mock_questionary: MagicMock) -> None:
+        """Test project name with spaces is normalized to underscores."""
+        mock_text = MagicMock()
+        mock_text.ask.side_effect = [
+            "My Project",
+            "My description",
+            "John Doe",
+            "john@example.com",
+        ]
+        mock_questionary.text.return_value = mock_text
+
+        result = prompt_basic_info()
+
+        assert result["project_name"] == "my_project"
+
+    @patch("fastapi_gen.prompts.questionary")
+    def test_normalizes_project_name_with_dashes(self, mock_questionary: MagicMock) -> None:
+        """Test project name with dashes is normalized to underscores."""
+        mock_text = MagicMock()
+        mock_text.ask.side_effect = [
+            "my-project",
+            "My description",
+            "John Doe",
+            "john@example.com",
+        ]
+        mock_questionary.text.return_value = mock_text
+
+        result = prompt_basic_info()
+
+        assert result["project_name"] == "my_project"
 
     @patch("fastapi_gen.prompts.questionary")
     def test_raises_on_cancel(self, mock_questionary: MagicMock) -> None:
@@ -215,6 +396,94 @@ class TestPromptIntegrations:
         assert result["enable_sentry"] is False
 
 
+class TestPromptRateLimitConfig:
+    """Tests for prompt_rate_limit_config function."""
+
+    @patch("fastapi_gen.prompts.questionary")
+    def test_returns_config_values(self, mock_questionary: MagicMock) -> None:
+        """Test rate limit config values are returned."""
+        mock_text = MagicMock()
+        mock_text.ask.side_effect = ["50", "30"]
+        mock_questionary.text.return_value = mock_text
+
+        mock_select = MagicMock()
+        mock_select.ask.return_value = RateLimitStorageType.MEMORY
+        mock_questionary.select.return_value = mock_select
+        mock_questionary.Choice = MagicMock()
+
+        requests, period, storage = prompt_rate_limit_config(redis_enabled=False)
+
+        assert requests == 50
+        assert period == 30
+        assert storage == RateLimitStorageType.MEMORY
+
+    @patch("fastapi_gen.prompts.questionary")
+    def test_returns_redis_storage_when_redis_enabled(self, mock_questionary: MagicMock) -> None:
+        """Test Redis storage can be selected when Redis is enabled."""
+        mock_text = MagicMock()
+        mock_text.ask.side_effect = ["100", "60"]
+        mock_questionary.text.return_value = mock_text
+
+        mock_select = MagicMock()
+        mock_select.ask.return_value = RateLimitStorageType.REDIS
+        mock_questionary.select.return_value = mock_select
+        mock_questionary.Choice = MagicMock()
+
+        requests, period, storage = prompt_rate_limit_config(redis_enabled=True)
+
+        assert requests == 100
+        assert period == 60
+        assert storage == RateLimitStorageType.REDIS
+
+    @patch("fastapi_gen.prompts.questionary")
+    def test_redis_option_not_shown_when_redis_disabled(self, mock_questionary: MagicMock) -> None:
+        """Test Redis storage option is not shown when Redis is disabled."""
+        mock_text = MagicMock()
+        mock_text.ask.side_effect = ["100", "60"]
+        mock_questionary.text.return_value = mock_text
+
+        mock_select = MagicMock()
+        mock_select.ask.return_value = RateLimitStorageType.MEMORY
+        mock_questionary.select.return_value = mock_select
+        mock_questionary.Choice = MagicMock()
+
+        prompt_rate_limit_config(redis_enabled=False)
+
+        # Check that select was called with only one choice (Memory)
+        select_call = mock_questionary.select.call_args
+        choices = select_call[1]["choices"]
+        assert len(choices) == 1
+
+    @patch("fastapi_gen.prompts.questionary")
+    def test_redis_option_shown_when_redis_enabled(self, mock_questionary: MagicMock) -> None:
+        """Test Redis storage option is shown when Redis is enabled."""
+        mock_text = MagicMock()
+        mock_text.ask.side_effect = ["100", "60"]
+        mock_questionary.text.return_value = mock_text
+
+        mock_select = MagicMock()
+        mock_select.ask.return_value = RateLimitStorageType.MEMORY
+        mock_questionary.select.return_value = mock_select
+        mock_questionary.Choice = MagicMock()
+
+        prompt_rate_limit_config(redis_enabled=True)
+
+        # Check that select was called with two choices (Memory and Redis)
+        select_call = mock_questionary.select.call_args
+        choices = select_call[1]["choices"]
+        assert len(choices) == 2
+
+    @patch("fastapi_gen.prompts.questionary")
+    def test_raises_on_cancel(self, mock_questionary: MagicMock) -> None:
+        """Test KeyboardInterrupt on cancel."""
+        mock_text = MagicMock()
+        mock_text.ask.return_value = None
+        mock_questionary.text.return_value = mock_text
+
+        with pytest.raises(KeyboardInterrupt):
+            prompt_rate_limit_config(redis_enabled=False)
+
+
 class TestPromptDevTools:
     """Tests for prompt_dev_tools function."""
 
@@ -234,7 +503,6 @@ class TestPromptDevTools:
 
         assert result["enable_pytest"] is True
         assert result["enable_precommit"] is False
-        assert result["enable_makefile"] is False
         assert result["enable_docker"] is True
         assert result["enable_kubernetes"] is True
         assert result["ci_type"] == CIType.GITLAB
@@ -628,7 +896,6 @@ class TestRunInteractivePrompts:
         mock_dev_tools.return_value = {
             "enable_pytest": True,
             "enable_precommit": True,
-            "enable_makefile": True,
             "enable_docker": True,
             "enable_kubernetes": False,
             "ci_type": CIType.GITHUB,
@@ -710,7 +977,6 @@ class TestRunInteractivePrompts:
         mock_dev_tools.return_value = {
             "enable_pytest": True,
             "enable_precommit": True,
-            "enable_makefile": True,
             "enable_docker": True,
             "enable_kubernetes": False,
             "ci_type": CIType.GITHUB,
@@ -732,6 +998,7 @@ class TestRunInteractivePrompts:
 
     @patch("fastapi_gen.prompts.questionary")
     @patch("fastapi_gen.prompts.prompt_websocket_auth")
+    @patch("fastapi_gen.prompts.prompt_llm_provider")
     @patch("fastapi_gen.prompts.prompt_ai_framework")
     @patch("fastapi_gen.prompts.prompt_ports")
     @patch("fastapi_gen.prompts.prompt_python_version")
@@ -760,6 +1027,7 @@ class TestRunInteractivePrompts:
         mock_python_version: MagicMock,
         mock_ports: MagicMock,
         mock_ai_framework: MagicMock,
+        mock_llm_provider: MagicMock,
         mock_websocket_auth: MagicMock,
         mock_questionary: MagicMock,
     ) -> None:
@@ -793,7 +1061,6 @@ class TestRunInteractivePrompts:
         mock_dev_tools.return_value = {
             "enable_pytest": True,
             "enable_precommit": True,
-            "enable_makefile": True,
             "enable_docker": True,
             "enable_kubernetes": False,
             "ci_type": CIType.GITHUB,
@@ -802,6 +1069,7 @@ class TestRunInteractivePrompts:
         mock_python_version.return_value = "3.12"
         mock_ports.return_value = {"backend_port": 8000}
         mock_ai_framework.return_value = AIFrameworkType.PYDANTIC_AI
+        mock_llm_provider.return_value = LLMProviderType.OPENAI
         mock_websocket_auth.return_value = WebSocketAuthType.JWT
 
         # Mock session management and conversation persistence confirm
@@ -815,6 +1083,7 @@ class TestRunInteractivePrompts:
         assert config.enable_ai_agent is True
         assert config.websocket_auth == WebSocketAuthType.JWT
         assert config.enable_conversation_persistence is True
+        assert config.llm_provider == LLMProviderType.OPENAI
         mock_websocket_auth.assert_called_once()
 
     @patch("fastapi_gen.prompts.questionary")
@@ -878,7 +1147,6 @@ class TestRunInteractivePrompts:
         mock_dev_tools.return_value = {
             "enable_pytest": True,
             "enable_precommit": True,
-            "enable_makefile": True,
             "enable_docker": True,
             "enable_kubernetes": False,
             "ci_type": CIType.GITHUB,
@@ -900,6 +1168,169 @@ class TestRunInteractivePrompts:
         assert config.admin_environments == AdminEnvironmentType.DEV_ONLY
         assert config.admin_require_auth is True
         mock_admin_config.assert_called_once()
+
+    @patch("fastapi_gen.prompts.questionary")
+    @patch("fastapi_gen.prompts.prompt_admin_config")
+    @patch("fastapi_gen.prompts.prompt_ports")
+    @patch("fastapi_gen.prompts.prompt_python_version")
+    @patch("fastapi_gen.prompts.prompt_frontend")
+    @patch("fastapi_gen.prompts.prompt_dev_tools")
+    @patch("fastapi_gen.prompts.prompt_integrations")
+    @patch("fastapi_gen.prompts.prompt_background_tasks")
+    @patch("fastapi_gen.prompts.prompt_logfire")
+    @patch("fastapi_gen.prompts.prompt_oauth")
+    @patch("fastapi_gen.prompts.prompt_auth")
+    @patch("fastapi_gen.prompts.prompt_database")
+    @patch("fastapi_gen.prompts.prompt_basic_info")
+    @patch("fastapi_gen.prompts.show_header")
+    def test_admin_panel_with_sqlite(
+        self,
+        mock_header: MagicMock,
+        mock_basic_info: MagicMock,
+        mock_database: MagicMock,
+        mock_auth: MagicMock,
+        mock_oauth: MagicMock,
+        mock_logfire: MagicMock,
+        mock_background_tasks: MagicMock,
+        mock_integrations: MagicMock,
+        mock_dev_tools: MagicMock,
+        mock_frontend: MagicMock,
+        mock_python_version: MagicMock,
+        mock_ports: MagicMock,
+        mock_admin_config: MagicMock,
+        mock_questionary: MagicMock,
+    ) -> None:
+        """Test admin panel prompts config when SQLite is selected."""
+        mock_basic_info.return_value = {
+            "project_name": "test_project",
+            "project_description": "Test",
+            "author_name": "Test Author",
+            "author_email": "test@test.com",
+        }
+        mock_database.return_value = DatabaseType.SQLITE
+        mock_auth.return_value = AuthType.JWT
+        mock_oauth.return_value = OAuthProvider.NONE
+        mock_logfire.return_value = (True, LogfireFeatures())
+        mock_background_tasks.return_value = BackgroundTaskType.NONE
+        mock_integrations.return_value = {
+            "enable_redis": False,
+            "enable_caching": False,
+            "enable_rate_limiting": False,
+            "enable_pagination": True,
+            "enable_sentry": False,
+            "enable_prometheus": False,
+            "enable_admin_panel": True,  # Admin panel enabled
+            "enable_websockets": False,
+            "enable_file_storage": False,
+            "enable_ai_agent": False,
+            "include_example_crud": True,
+            "enable_cors": True,
+            "enable_orjson": True,
+        }
+        mock_dev_tools.return_value = {
+            "enable_pytest": True,
+            "enable_precommit": True,
+            "enable_docker": True,
+            "enable_kubernetes": False,
+            "ci_type": CIType.GITHUB,
+        }
+        mock_frontend.return_value = FrontendType.NONE
+        mock_python_version.return_value = "3.12"
+        mock_ports.return_value = {"backend_port": 8000}
+        mock_admin_config.return_value = (AdminEnvironmentType.DEV_ONLY, True)
+
+        # Mock session management confirm
+        mock_confirm = MagicMock()
+        mock_confirm.ask.return_value = False
+        mock_questionary.confirm.return_value = mock_confirm
+
+        config = run_interactive_prompts()
+
+        # Admin config should be set for SQLite too
+        assert config.enable_admin_panel is True
+        assert config.admin_environments == AdminEnvironmentType.DEV_ONLY
+        assert config.admin_require_auth is True
+        mock_admin_config.assert_called_once()
+
+    @patch("fastapi_gen.prompts.questionary")
+    @patch("fastapi_gen.prompts.prompt_admin_config")
+    @patch("fastapi_gen.prompts.prompt_ports")
+    @patch("fastapi_gen.prompts.prompt_python_version")
+    @patch("fastapi_gen.prompts.prompt_frontend")
+    @patch("fastapi_gen.prompts.prompt_dev_tools")
+    @patch("fastapi_gen.prompts.prompt_integrations")
+    @patch("fastapi_gen.prompts.prompt_background_tasks")
+    @patch("fastapi_gen.prompts.prompt_logfire")
+    @patch("fastapi_gen.prompts.prompt_oauth")
+    @patch("fastapi_gen.prompts.prompt_auth")
+    @patch("fastapi_gen.prompts.prompt_database")
+    @patch("fastapi_gen.prompts.prompt_basic_info")
+    @patch("fastapi_gen.prompts.show_header")
+    def test_admin_panel_not_prompted_with_mongodb(
+        self,
+        mock_header: MagicMock,
+        mock_basic_info: MagicMock,
+        mock_database: MagicMock,
+        mock_auth: MagicMock,
+        mock_oauth: MagicMock,
+        mock_logfire: MagicMock,
+        mock_background_tasks: MagicMock,
+        mock_integrations: MagicMock,
+        mock_dev_tools: MagicMock,
+        mock_frontend: MagicMock,
+        mock_python_version: MagicMock,
+        mock_ports: MagicMock,
+        mock_admin_config: MagicMock,
+        mock_questionary: MagicMock,
+    ) -> None:
+        """Test admin panel config is NOT prompted when MongoDB is selected."""
+        mock_basic_info.return_value = {
+            "project_name": "test_project",
+            "project_description": "Test",
+            "author_name": "Test Author",
+            "author_email": "test@test.com",
+        }
+        mock_database.return_value = DatabaseType.MONGODB
+        mock_auth.return_value = AuthType.NONE
+        mock_oauth.return_value = OAuthProvider.NONE
+        mock_logfire.return_value = (True, LogfireFeatures())
+        mock_background_tasks.return_value = BackgroundTaskType.NONE
+        mock_integrations.return_value = {
+            "enable_redis": False,
+            "enable_caching": False,
+            "enable_rate_limiting": False,
+            "enable_pagination": True,
+            "enable_sentry": False,
+            "enable_prometheus": False,
+            "enable_admin_panel": False,  # Admin panel disabled for MongoDB
+            "enable_websockets": False,
+            "enable_file_storage": False,
+            "enable_ai_agent": False,
+            "include_example_crud": True,
+            "enable_cors": True,
+            "enable_orjson": True,
+        }
+        mock_dev_tools.return_value = {
+            "enable_pytest": True,
+            "enable_precommit": True,
+            "enable_docker": True,
+            "enable_kubernetes": False,
+            "ci_type": CIType.GITHUB,
+        }
+        mock_frontend.return_value = FrontendType.NONE
+        mock_python_version.return_value = "3.12"
+        mock_ports.return_value = {"backend_port": 8000}
+
+        # Mock session management confirm
+        mock_confirm = MagicMock()
+        mock_confirm.ask.return_value = False
+        mock_questionary.confirm.return_value = mock_confirm
+
+        config = run_interactive_prompts()
+
+        # Admin config should NOT be prompted for MongoDB
+        assert config.enable_admin_panel is False
+        mock_admin_config.assert_not_called()
 
     @patch("fastapi_gen.prompts.questionary")
     @patch("fastapi_gen.prompts.prompt_frontend_features")
@@ -961,7 +1392,6 @@ class TestRunInteractivePrompts:
         mock_dev_tools.return_value = {
             "enable_pytest": True,
             "enable_precommit": True,
-            "enable_makefile": True,
             "enable_docker": True,
             "enable_kubernetes": False,
             "ci_type": CIType.GITHUB,
@@ -982,6 +1412,171 @@ class TestRunInteractivePrompts:
         assert config.frontend == FrontendType.NEXTJS
         assert config.enable_i18n is True
         mock_frontend_features.assert_called_once()
+
+    @patch("fastapi_gen.prompts.questionary")
+    @patch("fastapi_gen.prompts.prompt_rate_limit_config")
+    @patch("fastapi_gen.prompts.prompt_ports")
+    @patch("fastapi_gen.prompts.prompt_python_version")
+    @patch("fastapi_gen.prompts.prompt_frontend")
+    @patch("fastapi_gen.prompts.prompt_dev_tools")
+    @patch("fastapi_gen.prompts.prompt_integrations")
+    @patch("fastapi_gen.prompts.prompt_background_tasks")
+    @patch("fastapi_gen.prompts.prompt_logfire")
+    @patch("fastapi_gen.prompts.prompt_oauth")
+    @patch("fastapi_gen.prompts.prompt_auth")
+    @patch("fastapi_gen.prompts.prompt_database")
+    @patch("fastapi_gen.prompts.prompt_basic_info")
+    @patch("fastapi_gen.prompts.show_header")
+    def test_rate_limit_config_prompted_when_enabled(
+        self,
+        mock_header: MagicMock,
+        mock_basic_info: MagicMock,
+        mock_database: MagicMock,
+        mock_auth: MagicMock,
+        mock_oauth: MagicMock,
+        mock_logfire: MagicMock,
+        mock_background_tasks: MagicMock,
+        mock_integrations: MagicMock,
+        mock_dev_tools: MagicMock,
+        mock_frontend: MagicMock,
+        mock_python_version: MagicMock,
+        mock_ports: MagicMock,
+        mock_rate_limit_config: MagicMock,
+        mock_questionary: MagicMock,
+    ) -> None:
+        """Test rate limit config is prompted when rate limiting is enabled."""
+        mock_basic_info.return_value = {
+            "project_name": "test_project",
+            "project_description": "Test",
+            "author_name": "Test Author",
+            "author_email": "test@test.com",
+        }
+        mock_database.return_value = DatabaseType.POSTGRESQL
+        mock_auth.return_value = AuthType.JWT
+        mock_oauth.return_value = OAuthProvider.NONE
+        mock_logfire.return_value = (False, LogfireFeatures())
+        mock_background_tasks.return_value = BackgroundTaskType.NONE
+        mock_integrations.return_value = {
+            "enable_redis": True,
+            "enable_caching": False,
+            "enable_rate_limiting": True,  # Rate limiting enabled
+            "enable_pagination": True,
+            "enable_sentry": False,
+            "enable_prometheus": False,
+            "enable_admin_panel": False,
+            "enable_websockets": False,
+            "enable_file_storage": False,
+            "enable_ai_agent": False,
+            "enable_cors": True,
+            "enable_orjson": True,
+        }
+        mock_dev_tools.return_value = {
+            "enable_pytest": True,
+            "enable_precommit": True,
+            "enable_docker": True,
+            "enable_kubernetes": False,
+            "ci_type": CIType.GITHUB,
+        }
+        mock_frontend.return_value = FrontendType.NONE
+        mock_python_version.return_value = "3.12"
+        mock_ports.return_value = {"backend_port": 8000}
+        mock_rate_limit_config.return_value = (50, 30, RateLimitStorageType.REDIS)
+
+        # Mock session management confirm
+        mock_confirm = MagicMock()
+        mock_confirm.ask.return_value = False
+        mock_questionary.confirm.return_value = mock_confirm
+
+        config = run_interactive_prompts()
+
+        # Rate limit config should be called and values set
+        assert config.enable_rate_limiting is True
+        assert config.rate_limit_requests == 50
+        assert config.rate_limit_period == 30
+        assert config.rate_limit_storage == RateLimitStorageType.REDIS
+        mock_rate_limit_config.assert_called_once_with(redis_enabled=True)
+
+    @patch("fastapi_gen.prompts.questionary")
+    @patch("fastapi_gen.prompts.prompt_rate_limit_config")
+    @patch("fastapi_gen.prompts.prompt_ports")
+    @patch("fastapi_gen.prompts.prompt_python_version")
+    @patch("fastapi_gen.prompts.prompt_frontend")
+    @patch("fastapi_gen.prompts.prompt_dev_tools")
+    @patch("fastapi_gen.prompts.prompt_integrations")
+    @patch("fastapi_gen.prompts.prompt_background_tasks")
+    @patch("fastapi_gen.prompts.prompt_logfire")
+    @patch("fastapi_gen.prompts.prompt_oauth")
+    @patch("fastapi_gen.prompts.prompt_auth")
+    @patch("fastapi_gen.prompts.prompt_database")
+    @patch("fastapi_gen.prompts.prompt_basic_info")
+    @patch("fastapi_gen.prompts.show_header")
+    def test_rate_limit_config_not_prompted_when_disabled(
+        self,
+        mock_header: MagicMock,
+        mock_basic_info: MagicMock,
+        mock_database: MagicMock,
+        mock_auth: MagicMock,
+        mock_oauth: MagicMock,
+        mock_logfire: MagicMock,
+        mock_background_tasks: MagicMock,
+        mock_integrations: MagicMock,
+        mock_dev_tools: MagicMock,
+        mock_frontend: MagicMock,
+        mock_python_version: MagicMock,
+        mock_ports: MagicMock,
+        mock_rate_limit_config: MagicMock,
+        mock_questionary: MagicMock,
+    ) -> None:
+        """Test rate limit config is NOT prompted when rate limiting is disabled."""
+        mock_basic_info.return_value = {
+            "project_name": "test_project",
+            "project_description": "Test",
+            "author_name": "Test Author",
+            "author_email": "test@test.com",
+        }
+        mock_database.return_value = DatabaseType.POSTGRESQL
+        mock_auth.return_value = AuthType.JWT
+        mock_oauth.return_value = OAuthProvider.NONE
+        mock_logfire.return_value = (False, LogfireFeatures())
+        mock_background_tasks.return_value = BackgroundTaskType.NONE
+        mock_integrations.return_value = {
+            "enable_redis": False,
+            "enable_caching": False,
+            "enable_rate_limiting": False,  # Rate limiting disabled
+            "enable_pagination": True,
+            "enable_sentry": False,
+            "enable_prometheus": False,
+            "enable_admin_panel": False,
+            "enable_websockets": False,
+            "enable_file_storage": False,
+            "enable_ai_agent": False,
+            "enable_cors": True,
+            "enable_orjson": True,
+        }
+        mock_dev_tools.return_value = {
+            "enable_pytest": True,
+            "enable_precommit": True,
+            "enable_docker": True,
+            "enable_kubernetes": False,
+            "ci_type": CIType.GITHUB,
+        }
+        mock_frontend.return_value = FrontendType.NONE
+        mock_python_version.return_value = "3.12"
+        mock_ports.return_value = {"backend_port": 8000}
+
+        # Mock session management confirm
+        mock_confirm = MagicMock()
+        mock_confirm.ask.return_value = False
+        mock_questionary.confirm.return_value = mock_confirm
+
+        config = run_interactive_prompts()
+
+        # Rate limit config should NOT be called
+        assert config.enable_rate_limiting is False
+        assert config.rate_limit_requests == 100  # Default value
+        assert config.rate_limit_period == 60  # Default value
+        assert config.rate_limit_storage == RateLimitStorageType.MEMORY  # Default value
+        mock_rate_limit_config.assert_not_called()
 
 
 class TestShowSummary:
