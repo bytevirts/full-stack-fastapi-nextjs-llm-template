@@ -9,6 +9,7 @@ from fastapi_gen.config import DatabaseType, FrontendType, ProjectConfig
 from fastapi_gen.generator import (
     TEMPLATE_DIR,
     _find_template_dir,
+    _get_database_setup_commands,
     generate_project,
     get_template_path,
     post_generation_tasks,
@@ -51,6 +52,41 @@ class TestFindTemplateDir:
             pytest.raises(FileNotFoundError, match="Could not find cookiecutter"),
         ):
             _find_template_dir()
+
+
+class TestGetDatabaseSetupCommands:
+    """Tests for _get_database_setup_commands function."""
+
+    def test_postgresql_commands(self) -> None:
+        """Test PostgreSQL returns docker-db and migration commands."""
+        commands = _get_database_setup_commands(DatabaseType.POSTGRESQL)
+
+        assert len(commands) == 3
+        assert "docker-db" in commands[0]
+        assert "PostgreSQL" in commands[0]
+        assert "db-migrate" in commands[1]
+        assert "db-upgrade" in commands[2]
+
+    def test_sqlite_commands(self) -> None:
+        """Test SQLite returns auto-create message and migration commands."""
+        commands = _get_database_setup_commands(DatabaseType.SQLITE)
+
+        assert len(commands) == 3
+        assert "automatically" in commands[0]
+        assert "db-migrate" in commands[1]
+        assert "db-upgrade" in commands[2]
+        # Should not mention docker
+        assert "docker" not in commands[0].lower()
+
+    def test_mongodb_commands(self) -> None:
+        """Test MongoDB returns docker-mongo command."""
+        commands = _get_database_setup_commands(DatabaseType.MONGODB)
+
+        assert len(commands) == 2
+        assert "docker-mongo" in commands[0]
+        assert "MongoDB" in commands[0]
+        # Should not mention migrations (MongoDB doesn't use them)
+        assert not any("migrate" in cmd for cmd in commands)
 
 
 class TestGetTemplatePath:
