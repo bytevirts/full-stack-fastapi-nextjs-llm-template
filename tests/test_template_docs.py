@@ -14,11 +14,16 @@ class TestVariablesDocumentation:
 
     @pytest.fixture
     def cookiecutter_variables(self) -> set[str]:
-        """Load all variable names from cookiecutter.json."""
+        """Load all variable names from cookiecutter.json.
+
+        Excludes variables starting with '_' as these are internal/private
+        cookiecutter variables not meant for user documentation.
+        """
         cookiecutter_json = TEMPLATE_DIR / "cookiecutter.json"
         with cookiecutter_json.open() as f:
             data = json.load(f)
-        return set(data.keys())
+        # Exclude private variables (prefixed with _)
+        return {k for k in data.keys() if not k.startswith("_")}
 
     @pytest.fixture
     def documented_variables(self) -> set[str]:

@@ -503,7 +503,6 @@ class TestPromptDevTools:
 
         assert result["enable_pytest"] is True
         assert result["enable_precommit"] is False
-        assert result["enable_makefile"] is False
         assert result["enable_docker"] is True
         assert result["enable_kubernetes"] is True
         assert result["ci_type"] == CIType.GITLAB
@@ -897,7 +896,6 @@ class TestRunInteractivePrompts:
         mock_dev_tools.return_value = {
             "enable_pytest": True,
             "enable_precommit": True,
-            "enable_makefile": True,
             "enable_docker": True,
             "enable_kubernetes": False,
             "ci_type": CIType.GITHUB,
@@ -979,7 +977,6 @@ class TestRunInteractivePrompts:
         mock_dev_tools.return_value = {
             "enable_pytest": True,
             "enable_precommit": True,
-            "enable_makefile": True,
             "enable_docker": True,
             "enable_kubernetes": False,
             "ci_type": CIType.GITHUB,
@@ -1064,7 +1061,6 @@ class TestRunInteractivePrompts:
         mock_dev_tools.return_value = {
             "enable_pytest": True,
             "enable_precommit": True,
-            "enable_makefile": True,
             "enable_docker": True,
             "enable_kubernetes": False,
             "ci_type": CIType.GITHUB,
@@ -1151,7 +1147,6 @@ class TestRunInteractivePrompts:
         mock_dev_tools.return_value = {
             "enable_pytest": True,
             "enable_precommit": True,
-            "enable_makefile": True,
             "enable_docker": True,
             "enable_kubernetes": False,
             "ci_type": CIType.GITHUB,
@@ -1235,7 +1230,6 @@ class TestRunInteractivePrompts:
         mock_dev_tools.return_value = {
             "enable_pytest": True,
             "enable_precommit": True,
-            "enable_makefile": True,
             "enable_docker": True,
             "enable_kubernetes": False,
             "ci_type": CIType.GITHUB,
@@ -1319,7 +1313,6 @@ class TestRunInteractivePrompts:
         mock_dev_tools.return_value = {
             "enable_pytest": True,
             "enable_precommit": True,
-            "enable_makefile": True,
             "enable_docker": True,
             "enable_kubernetes": False,
             "ci_type": CIType.GITHUB,
@@ -1399,7 +1392,6 @@ class TestRunInteractivePrompts:
         mock_dev_tools.return_value = {
             "enable_pytest": True,
             "enable_precommit": True,
-            "enable_makefile": True,
             "enable_docker": True,
             "enable_kubernetes": False,
             "ci_type": CIType.GITHUB,
@@ -1481,7 +1473,6 @@ class TestRunInteractivePrompts:
         mock_dev_tools.return_value = {
             "enable_pytest": True,
             "enable_precommit": True,
-            "enable_makefile": True,
             "enable_docker": True,
             "enable_kubernetes": False,
             "ci_type": CIType.GITHUB,
@@ -1565,7 +1556,6 @@ class TestRunInteractivePrompts:
         mock_dev_tools.return_value = {
             "enable_pytest": True,
             "enable_precommit": True,
-            "enable_makefile": True,
             "enable_docker": True,
             "enable_kubernetes": False,
             "ci_type": CIType.GITHUB,

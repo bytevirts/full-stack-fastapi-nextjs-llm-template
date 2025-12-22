@@ -29,7 +29,7 @@ These variables are set automatically by the generator.
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
 | `generator_name` | string | `"fastapi-fullstack"` | Name of the generator tool |
-| `generator_version` | string | `"0.1.5"` | Version of the generator |
+| `generator_version` | string | `"DYNAMIC"` | Version of the generator (set at runtime) |
 | `generated_at` | string | `""` | Timestamp when project was generated |
 
 ---
