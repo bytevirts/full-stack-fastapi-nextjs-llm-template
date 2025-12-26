@@ -144,6 +144,11 @@ cd my_ai_app
 make install
 ```
 
+> **Windows Users:** The `make` command requires GNU Make which is not available by default on Windows.
+> You can either install Make via [Chocolatey](https://chocolatey.org/) (`choco install make`),
+> use WSL (Windows Subsystem for Linux), or use the raw commands from the
+> [Manual Commands Reference](#-manual-commands-reference-windows--no-make) section below.
+
 #### Step 2: Start the Database
 {%- if cookiecutter.use_postgresql %}
 
@@ -850,6 +855,117 @@ Commands are **automatically discovered** from `app/commands/` - just create a f
 uv run {{ cookiecutter.project_slug }} cmd seed --count 100
 uv run {{ cookiecutter.project_slug }} cmd seed --dry-run
 ```
+
+---
+
+## 🖥️ Manual Commands Reference (Windows / No Make)
+
+If you don't have `make` installed (common on Windows), use these commands directly.
+All commands should be run from the project root directory.
+
+### Setup & Development
+
+| Task | Command |
+|------|---------|
+| Install dependencies | `uv sync --directory backend --dev` |
+| Start dev server | `uv run --directory backend {{ cookiecutter.project_slug }} server run --reload` |
+| Start prod server | `uv run --directory backend {{ cookiecutter.project_slug }} server run --host 0.0.0.0 --port {{ cookiecutter.backend_port }}` |
+| Show routes | `uv run --directory backend {{ cookiecutter.project_slug }} server routes` |
+
+### Code Quality
+
+| Task | Command |
+|------|---------|
+| Format code | `uv run --directory backend ruff format app tests cli` |
+| Fix lint issues | `uv run --directory backend ruff check app tests cli --fix` |
+| Check linting | `uv run --directory backend ruff check app tests cli` |
+| Type check | `uv run --directory backend mypy app` |
+
+### Testing
+
+| Task | Command |
+|------|---------|
+| Run tests | `uv run --directory backend pytest tests/ -v` |
+| Run with coverage | `uv run --directory backend pytest tests/ -v --cov=app --cov-report=term-missing` |
+
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
+
+### Database
+
+| Task | Command |
+|------|---------|
+| Create migration | `uv run --directory backend {{ cookiecutter.project_slug }} db migrate -m "message"` |
+| Apply migrations | `uv run --directory backend {{ cookiecutter.project_slug }} db upgrade` |
+| Rollback migration | `uv run --directory backend {{ cookiecutter.project_slug }} db downgrade` |
+| Show current | `uv run --directory backend {{ cookiecutter.project_slug }} db current` |
+| Show history | `uv run --directory backend {{ cookiecutter.project_slug }} db history` |
+{%- endif %}
+
+{%- if cookiecutter.use_jwt %}
+
+### Users
+
+| Task | Command |
+|------|---------|
+| Create admin | `uv run --directory backend {{ cookiecutter.project_slug }} user create-admin` |
+| Create user | `uv run --directory backend {{ cookiecutter.project_slug }} user create` |
+| List users | `uv run --directory backend {{ cookiecutter.project_slug }} user list` |
+{%- endif %}
+
+{%- if cookiecutter.use_celery %}
+
+### Celery
+
+| Task | Command |
+|------|---------|
+| Start worker | `uv run --directory backend {{ cookiecutter.project_slug }} celery worker` |
+| Start beat | `uv run --directory backend {{ cookiecutter.project_slug }} celery beat` |
+| Start flower | `uv run --directory backend {{ cookiecutter.project_slug }} celery flower` |
+{%- endif %}
+
+{%- if cookiecutter.use_taskiq %}
+
+### Taskiq
+
+| Task | Command |
+|------|---------|
+| Start worker | `uv run --directory backend {{ cookiecutter.project_slug }} taskiq worker` |
+| Start scheduler | `uv run --directory backend {{ cookiecutter.project_slug }} taskiq scheduler` |
+{%- endif %}
+
+{%- if cookiecutter.use_arq %}
+
+### ARQ
+
+| Task | Command |
+|------|---------|
+| Start worker | `arq app.worker.arq_app.WorkerSettings` (from backend/) |
+{%- endif %}
+
+{%- if cookiecutter.enable_docker %}
+
+### Docker
+
+| Task | Command |
+|------|---------|
+| Start all services | `docker-compose up -d` |
+| Stop all services | `docker-compose down` |
+| View logs | `docker-compose logs -f` |
+| Build images | `docker-compose build` |
+{%- if cookiecutter.use_postgresql %}
+| Start PostgreSQL only | `docker-compose up -d db` |
+{%- endif %}
+{%- if cookiecutter.enable_redis %}
+| Start Redis only | `docker-compose up -d redis` |
+{%- endif %}
+| Start production | `docker-compose -f docker-compose.prod.yml up -d` |
+{%- endif %}
+
+### Cleanup
+
+| Task | Command (Unix) | Command (Windows PowerShell) |
+|------|----------------|------------------------------|
+| Clean cache | `find . -type d -name __pycache__ -exec rm -rf {} +` | `Get-ChildItem -Recurse -Directory -Filter __pycache__ \| Remove-Item -Recurse -Force` |
 
 ---
 

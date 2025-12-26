@@ -150,6 +150,10 @@ cd my_ai_app
 make install
 ```
 
+> **Windows Users:** The `make` command requires GNU Make which is not available by default on Windows.
+> Install via [Chocolatey](https://chocolatey.org/) (`choco install make`), use WSL, or run raw commands manually.
+> Each generated project includes a "Manual Commands Reference" section in its README with all commands.
+
 #### 2. Start the database
 
 ```bash
