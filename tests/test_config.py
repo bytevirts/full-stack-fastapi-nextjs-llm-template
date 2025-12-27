@@ -16,6 +16,7 @@ from fastapi_gen.config import (
     OrmType,
     ProjectConfig,
     RateLimitStorageType,
+    ReverseProxyType,
     get_generator_version,
 )
 
@@ -378,6 +379,86 @@ class TestCookiecutterContext:
         assert context["ci_type"] == "gitlab"
         assert context["use_github_actions"] is False
         assert context["use_gitlab_ci"] is True
+
+    def test_traefik_included_flags(self) -> None:
+        """Test Traefik included sets correct flags."""
+        config = ProjectConfig(
+            project_name="test",
+            reverse_proxy=ReverseProxyType.TRAEFIK_INCLUDED,
+        )
+        context = config.to_cookiecutter_context()
+
+        assert context["reverse_proxy"] == "traefik_included"
+        assert context["include_traefik_service"] is True
+        assert context["include_traefik_labels"] is True
+        assert context["use_traefik"] is True
+        assert context["include_nginx_service"] is False
+        assert context["include_nginx_config"] is False
+        assert context["use_nginx"] is False
+
+    def test_traefik_external_flags(self) -> None:
+        """Test Traefik external sets correct flags."""
+        config = ProjectConfig(
+            project_name="test",
+            reverse_proxy=ReverseProxyType.TRAEFIK_EXTERNAL,
+        )
+        context = config.to_cookiecutter_context()
+
+        assert context["reverse_proxy"] == "traefik_external"
+        assert context["include_traefik_service"] is False
+        assert context["include_traefik_labels"] is True
+        assert context["use_traefik"] is True
+        assert context["include_nginx_service"] is False
+        assert context["include_nginx_config"] is False
+        assert context["use_nginx"] is False
+
+    def test_nginx_included_flags(self) -> None:
+        """Test Nginx included sets correct flags."""
+        config = ProjectConfig(
+            project_name="test",
+            reverse_proxy=ReverseProxyType.NGINX_INCLUDED,
+        )
+        context = config.to_cookiecutter_context()
+
+        assert context["reverse_proxy"] == "nginx_included"
+        assert context["include_traefik_service"] is False
+        assert context["include_traefik_labels"] is False
+        assert context["use_traefik"] is False
+        assert context["include_nginx_service"] is True
+        assert context["include_nginx_config"] is True
+        assert context["use_nginx"] is True
+
+    def test_nginx_external_flags(self) -> None:
+        """Test Nginx external sets correct flags."""
+        config = ProjectConfig(
+            project_name="test",
+            reverse_proxy=ReverseProxyType.NGINX_EXTERNAL,
+        )
+        context = config.to_cookiecutter_context()
+
+        assert context["reverse_proxy"] == "nginx_external"
+        assert context["include_traefik_service"] is False
+        assert context["include_traefik_labels"] is False
+        assert context["use_traefik"] is False
+        assert context["include_nginx_service"] is False
+        assert context["include_nginx_config"] is True
+        assert context["use_nginx"] is True
+
+    def test_no_reverse_proxy_flags(self) -> None:
+        """Test no reverse proxy sets correct flags."""
+        config = ProjectConfig(
+            project_name="test",
+            reverse_proxy=ReverseProxyType.NONE,
+        )
+        context = config.to_cookiecutter_context()
+
+        assert context["reverse_proxy"] == "none"
+        assert context["include_traefik_service"] is False
+        assert context["include_traefik_labels"] is False
+        assert context["use_traefik"] is False
+        assert context["include_nginx_service"] is False
+        assert context["include_nginx_config"] is False
+        assert context["use_nginx"] is False
 
     def test_logfire_features_in_context(self) -> None:
         """Test Logfire features are correctly mapped."""

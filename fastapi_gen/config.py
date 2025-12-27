@@ -111,6 +111,8 @@ class ReverseProxyType(str, Enum):
 
     TRAEFIK_INCLUDED = "traefik_included"  # Include Traefik service + labels
     TRAEFIK_EXTERNAL = "traefik_external"  # External Traefik, include labels only
+    NGINX_INCLUDED = "nginx_included"  # Include Nginx service in docker-compose
+    NGINX_EXTERNAL = "nginx_external"  # External Nginx, config template only
     NONE = "none"  # No reverse proxy, expose ports directly
 
 
@@ -369,6 +371,13 @@ class ProjectConfig(BaseModel):
             "include_traefik_service": self.reverse_proxy == ReverseProxyType.TRAEFIK_INCLUDED,
             "include_traefik_labels": self.reverse_proxy
             in (ReverseProxyType.TRAEFIK_INCLUDED, ReverseProxyType.TRAEFIK_EXTERNAL),
+            "use_traefik": self.reverse_proxy
+            in (ReverseProxyType.TRAEFIK_INCLUDED, ReverseProxyType.TRAEFIK_EXTERNAL),
+            "include_nginx_service": self.reverse_proxy == ReverseProxyType.NGINX_INCLUDED,
+            "include_nginx_config": self.reverse_proxy
+            in (ReverseProxyType.NGINX_INCLUDED, ReverseProxyType.NGINX_EXTERNAL),
+            "use_nginx": self.reverse_proxy
+            in (ReverseProxyType.NGINX_INCLUDED, ReverseProxyType.NGINX_EXTERNAL),
             "ci_type": self.ci_type.value,
             "use_github_actions": self.ci_type == CIType.GITHUB,
             "use_gitlab_ci": self.ci_type == CIType.GITLAB,

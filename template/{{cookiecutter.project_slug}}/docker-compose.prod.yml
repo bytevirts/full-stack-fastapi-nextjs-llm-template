@@ -4,6 +4,10 @@
 # with Traefik reverse proxy
 {%- elif cookiecutter.include_traefik_labels %}
 # with external Traefik (connect to traefik-public network)
+{%- elif cookiecutter.include_nginx_service %}
+# with Nginx reverse proxy
+{%- elif cookiecutter.include_nginx_config %}
+# with external Nginx (config template provided)
 {%- else %}
 # without reverse proxy (ports exposed directly)
 {%- endif %}
@@ -24,6 +28,19 @@
 #   1. Create external traefik-public network: docker network create traefik-public
 #   2. Run your Traefik instance connected to traefik-public network
 #   3. Configure .env.prod with DOMAIN
+{%- elif cookiecutter.include_nginx_service %}
+#
+# Prerequisites:
+#   1. Place SSL certificates in nginx/ssl/ directory:
+#      - nginx/ssl/cert.pem (certificate)
+#      - nginx/ssl/key.pem (private key)
+#   2. Configure .env.prod with DOMAIN
+#   3. Ensure ports 80 and 443 are available
+{%- elif cookiecutter.include_nginx_config %}
+#
+# Prerequisites:
+#   1. Configure your external Nginx using nginx/nginx.conf as reference
+#   2. Configure .env.prod with DOMAIN
 {%- endif %}
 
 services:
@@ -82,6 +99,36 @@ services:
           memory: 256M
 {%- endif %}
 
+{%- if cookiecutter.include_nginx_service %}
+  nginx:
+    image: nginx:alpine
+    container_name: {{ cookiecutter.project_slug }}_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - backend-internal
+    depends_on:
+      - app
+{%- if cookiecutter.use_frontend %}
+      - frontend
+{%- endif %}
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+{%- endif %}
+
   app:
     build:
       context: ./backend
@@ -120,6 +167,10 @@ services:
       - "traefik.http.routers.{{ cookiecutter.project_slug }}-api.middlewares={{ cookiecutter.project_slug }}-security-headers@docker"
       - "traefik.http.services.{{ cookiecutter.project_slug }}-api.loadbalancer.server.port={{ cookiecutter.backend_port }}"
       - "traefik.docker.network=traefik-public"
+{%- elif cookiecutter.include_nginx_service %}
+    networks:
+      - backend-internal
+    # No ports exposed - nginx handles external traffic
 {%- else %}
     networks:
       - backend-internal
@@ -289,6 +340,10 @@ services:
       - "traefik.http.routers.{{ cookiecutter.project_slug }}-flower.tls.certresolver=letsencrypt"
       - "traefik.http.services.{{ cookiecutter.project_slug }}-flower.loadbalancer.server.port=5555"
       - "traefik.docker.network=traefik-public"
+{%- elif cookiecutter.include_nginx_service %}
+    networks:
+      - backend-internal
+    # No ports exposed - nginx handles external traffic
 {%- else %}
     networks:
       - backend-internal
@@ -394,7 +449,13 @@ services:
       - "traefik.http.routers.{{ cookiecutter.project_slug }}-frontend.middlewares={{ cookiecutter.project_slug }}-security-headers@docker"
       - "traefik.http.services.{{ cookiecutter.project_slug }}-frontend.loadbalancer.server.port={{ cookiecutter.frontend_port }}"
       - "traefik.docker.network=traefik-public"
+{%- elif cookiecutter.include_nginx_service %}
+    networks:
+      - backend-internal
+    # No ports exposed - nginx handles external traffic
 {%- else %}
+    networks:
+      - backend-internal
     ports:
       - "{{ cookiecutter.frontend_port }}:{{ cookiecutter.frontend_port }}"
 {%- endif %}

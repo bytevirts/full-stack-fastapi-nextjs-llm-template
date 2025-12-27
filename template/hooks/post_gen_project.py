@@ -36,6 +36,7 @@ use_arq = "{{ cookiecutter.use_arq }}" == "True"
 use_github_actions = "{{ cookiecutter.use_github_actions }}" == "True"
 use_gitlab_ci = "{{ cookiecutter.use_gitlab_ci }}" == "True"
 enable_kubernetes = "{{ cookiecutter.enable_kubernetes }}" == "True"
+use_nginx = "{{ cookiecutter.use_nginx }}" == "True"
 
 
 def remove_file(path: str) -> None:
@@ -193,6 +194,12 @@ if not enable_kubernetes:
     if os.path.exists(kubernetes_dir):
         shutil.rmtree(kubernetes_dir)
         print("Removed kubernetes/ directory (Kubernetes not enabled)")
+
+if not use_nginx:
+    nginx_dir = os.path.join(os.getcwd(), "nginx")
+    if os.path.exists(nginx_dir):
+        shutil.rmtree(nginx_dir)
+        print("Removed nginx/ directory (Nginx not enabled)")
 
 # Remove frontend folder if not using frontend
 if not use_frontend:

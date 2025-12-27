@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10] - 2025-12-27
+
+### Added
+
+#### Nginx Reverse Proxy Support
+
+- **Nginx as alternative to Traefik** with two configuration modes:
+  - `nginx_included`: Full Nginx setup in docker-compose.prod.yml
+  - `nginx_external`: Nginx config template only, for external Nginx
+- **Nginx configuration template** (`nginx/nginx.conf`) with:
+  - Reverse proxy for backend API (api.DOMAIN)
+  - Reverse proxy for frontend (DOMAIN) - conditional
+  - Reverse proxy for Flower dashboard (flower.DOMAIN) - conditional
+  - WebSocket support for `/ws` endpoint
+  - Security headers (X-Frame-Options, X-Content-Type-Options, HSTS, etc.)
+  - HTTP to HTTPS redirect
+  - SSL/TLS configuration with modern cipher suites
+  - Let's Encrypt ACME challenge support
+- **SSL certificate directory** (`nginx/ssl/`) with setup instructions
+- New cookiecutter variables:
+  - `include_nginx_service`: Include Nginx container in docker-compose
+  - `include_nginx_config`: Generate nginx configuration files
+  - `use_nginx`: Using Nginx (included or external)
+  - `use_traefik`: Using Traefik (included or external)
+
+### Changed
+
+- **Reverse proxy prompt** now offers 5 options:
+  - Traefik (included in docker-compose) - default
+  - Traefik (external, shared between projects)
+  - Nginx (included in docker-compose)
+  - Nginx (external, config template only)
+  - None (expose ports directly)
+- **`ReverseProxyType` enum** extended with `NGINX_INCLUDED` and `NGINX_EXTERNAL`
+- **docker-compose.prod.yml** updated:
+  - Added nginx service definition
+  - Services use backend-internal network when nginx is selected
+  - No ports exposed on backend/frontend when nginx handles traffic
+- **`.env.prod.example`** includes DOMAIN variable for nginx configuration
+- **`post_gen_project.py`** removes nginx/ folder when nginx is not selected
+
+### Tests Added
+
+- Tests for `NGINX_INCLUDED` and `NGINX_EXTERNAL` enum values
+- Tests for cookiecutter context generation with all reverse proxy options
+- Tests for `prompt_reverse_proxy()` with nginx choices
+
 ## [0.1.9] - 2025-12-26
 
 ### Added

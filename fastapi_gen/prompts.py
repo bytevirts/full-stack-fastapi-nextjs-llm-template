@@ -452,7 +452,14 @@ def prompt_reverse_proxy() -> ReverseProxyType:
             "Traefik (included in docker-compose)", value=ReverseProxyType.TRAEFIK_INCLUDED
         ),
         questionary.Choice(
-            "External Traefik (shared between projects)", value=ReverseProxyType.TRAEFIK_EXTERNAL
+            "Traefik (external, shared between projects)",
+            value=ReverseProxyType.TRAEFIK_EXTERNAL,
+        ),
+        questionary.Choice(
+            "Nginx (included in docker-compose)", value=ReverseProxyType.NGINX_INCLUDED
+        ),
+        questionary.Choice(
+            "Nginx (external, config template only)", value=ReverseProxyType.NGINX_EXTERNAL
         ),
         questionary.Choice(
             "None (expose ports directly, use own proxy)", value=ReverseProxyType.NONE

@@ -891,6 +891,30 @@ class TestPromptReverseProxy:
         assert result == ReverseProxyType.NONE
 
     @patch("fastapi_gen.prompts.questionary")
+    def test_returns_nginx_included(self, mock_questionary: MagicMock) -> None:
+        """Test Nginx included is returned."""
+        mock_select = MagicMock()
+        mock_select.ask.return_value = ReverseProxyType.NGINX_INCLUDED
+        mock_questionary.select.return_value = mock_select
+        mock_questionary.Choice = MagicMock()
+
+        result = prompt_reverse_proxy()
+
+        assert result == ReverseProxyType.NGINX_INCLUDED
+
+    @patch("fastapi_gen.prompts.questionary")
+    def test_returns_nginx_external(self, mock_questionary: MagicMock) -> None:
+        """Test Nginx external is returned."""
+        mock_select = MagicMock()
+        mock_select.ask.return_value = ReverseProxyType.NGINX_EXTERNAL
+        mock_questionary.select.return_value = mock_select
+        mock_questionary.Choice = MagicMock()
+
+        result = prompt_reverse_proxy()
+
+        assert result == ReverseProxyType.NGINX_EXTERNAL
+
+    @patch("fastapi_gen.prompts.questionary")
     def test_raises_on_cancel(self, mock_questionary: MagicMock) -> None:
         """Test KeyboardInterrupt on cancel."""
         mock_select = MagicMock()
