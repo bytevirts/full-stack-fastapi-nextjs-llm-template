@@ -356,10 +356,23 @@ if not generate_env:
 backend_dir = os.path.join(os.getcwd(), "backend")
 if os.path.exists(backend_dir):
     uv_cmd = shutil.which("uv")
+    uv_args = None
     if uv_cmd:
+        uv_args = [uv_cmd]
+    else:
+        # Fallback to module execution if uv is installed via pip
+        result = subprocess.run(
+            [sys.executable, "-m", "uv", "--version"],
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            uv_args = [sys.executable, "-m", "uv"]
+
+    if uv_args:
         print("Generating uv.lock for backend...")
         result = subprocess.run(
-            [uv_cmd, "lock"],
+            [*uv_args, "lock"],
             cwd=backend_dir,
             capture_output=True,
             check=False,
