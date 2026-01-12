@@ -72,7 +72,7 @@ class Subscription(Base, TimestampMixin):
     current_period_end: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    metadata_: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSON, nullable=True)
 
     user: Mapped["User"] = relationship("User")
 
@@ -103,7 +103,7 @@ class TokenLedger(Base, TimestampMixin):
     cost_credits: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     overage_credits: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     provider_request_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    metadata_: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSON, nullable=True)
 
     user: Mapped["User"] = relationship("User")
 
@@ -137,7 +137,7 @@ class PaymentTransaction(Base, TimestampMixin):
     amount: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
     currency: Mapped[str | None] = mapped_column(String(10), nullable=True)
     credits_granted: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    metadata_: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSON, nullable=True)
 
     user: Mapped["User"] = relationship("User")
 

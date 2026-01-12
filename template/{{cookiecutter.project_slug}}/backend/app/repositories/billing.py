@@ -80,7 +80,7 @@ async def upsert_subscription(
         subscription.monthly_credits = monthly_credits
         subscription.current_period_start = current_period_start
         subscription.current_period_end = current_period_end
-        subscription.metadata = metadata
+        subscription.metadata_ = metadata
         db.add(subscription)
         await db.flush()
         await db.refresh(subscription)
@@ -95,7 +95,7 @@ async def upsert_subscription(
         monthly_credits=monthly_credits,
         current_period_start=current_period_start,
         current_period_end=current_period_end,
-        metadata=metadata,
+        metadata_=metadata,
     )
     db.add(subscription)
     await db.flush()
@@ -126,7 +126,7 @@ async def create_ledger_entry(
         cost_credits=cost_credits,
         overage_credits=overage_credits,
         provider_request_id=provider_request_id,
-        metadata=metadata,
+        metadata_=metadata,
     )
     db.add(entry)
     await db.flush()
@@ -184,7 +184,7 @@ async def create_transaction(
         amount=amount,
         currency=currency,
         credits_granted=credits_granted,
-        metadata=metadata,
+        metadata_=metadata,
     )
     db.add(transaction)
     await db.flush()
@@ -272,7 +272,7 @@ def upsert_subscription(
         subscription.monthly_credits = monthly_credits
         subscription.current_period_start = current_period_start
         subscription.current_period_end = current_period_end
-        subscription.metadata = metadata
+        subscription.metadata_ = metadata
         db.add(subscription)
         db.flush()
         db.refresh(subscription)
@@ -287,7 +287,7 @@ def upsert_subscription(
         monthly_credits=monthly_credits,
         current_period_start=current_period_start,
         current_period_end=current_period_end,
-        metadata=metadata,
+        metadata_=metadata,
     )
     db.add(subscription)
     db.flush()
@@ -318,7 +318,7 @@ def create_ledger_entry(
         cost_credits=cost_credits,
         overage_credits=overage_credits,
         provider_request_id=provider_request_id,
-        metadata=metadata,
+        metadata_=metadata,
     )
     db.add(entry)
     db.flush()
@@ -376,7 +376,7 @@ def create_transaction(
         amount=amount,
         currency=currency,
         credits_granted=credits_granted,
-        metadata=metadata,
+        metadata_=metadata,
     )
     db.add(transaction)
     db.flush()
