@@ -17,6 +17,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Ensure public dir exists even if project doesn't ship static assets
+RUN mkdir -p public
+
 # Build the application
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN bun run build
