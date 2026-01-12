@@ -8,7 +8,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    environment:
+    environment: &app_env
       ENVIRONMENT: production
       DEBUG: "false"
 {%- if cookiecutter.use_postgresql %}
@@ -22,9 +22,50 @@ services:
       MONGODB_URI: ${MONGODB_URI}
 {%- endif %}
       SECRET_KEY: ${SECRET_KEY}
+{%- if cookiecutter.use_api_key %}
+      API_KEY: ${API_KEY}
+{%- endif %}
+{%- if cookiecutter.enable_oauth and cookiecutter.enable_oauth_google %}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-https://example.com/api/v1/oauth/google/callback}
+{%- endif %}
+{%- if cookiecutter.enable_redis %}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+{%- endif %}
+{%- if cookiecutter.use_celery %}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+{%- endif %}
+{%- if cookiecutter.use_taskiq %}
+      TASKIQ_BROKER_URL: ${TASKIQ_BROKER_URL:-redis://redis:6379/1}
+      TASKIQ_RESULT_BACKEND: ${TASKIQ_RESULT_BACKEND:-redis://redis:6379/1}
+{%- endif %}
+{%- if cookiecutter.use_arq %}
+      ARQ_REDIS_HOST: ${ARQ_REDIS_HOST:-redis}
+      ARQ_REDIS_PORT: ${ARQ_REDIS_PORT:-6379}
+      ARQ_REDIS_PASSWORD: ${ARQ_REDIS_PASSWORD:-}
+      ARQ_REDIS_DB: ${ARQ_REDIS_DB:-2}
+{%- endif %}
 {%- if cookiecutter.enable_logfire %}
       LOGFIRE_TOKEN: ${LOGFIRE_TOKEN:-}
       LOGFIRE_ENVIRONMENT: production
+{%- endif %}
+{%- if cookiecutter.enable_sentry %}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+{%- endif %}
+{%- if cookiecutter.enable_prometheus %}
+      PROMETHEUS_METRICS_PATH: ${PROMETHEUS_METRICS_PATH:-/metrics}
+{%- endif %}
+{%- if cookiecutter.enable_file_storage %}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_BUCKET: ${S3_BUCKET:-{{ cookiecutter.project_slug }}}
+      S3_REGION: ${S3_REGION:-us-east-1}
 {%- endif %}
 {%- if cookiecutter.enable_ai_agent %}
 {%- if cookiecutter.use_openai %}
@@ -68,17 +109,106 @@ services:
 {%- endif %}
     restart: unless-stopped
 
+{%- if cookiecutter.use_celery %}
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment: *app_env
+    command: celery -A app.worker.celery_app worker --loglevel=warning --concurrency=4
+{%- if cookiecutter.use_postgresql or cookiecutter.enable_redis %}
+    depends_on:
+{%- if cookiecutter.use_postgresql %}
+      db:
+        condition: service_healthy
+{%- endif %}
+{%- if cookiecutter.enable_redis %}
+      redis:
+        condition: service_healthy
+{%- endif %}
+{%- endif %}
+    restart: unless-stopped
+
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment: *app_env
+    command: celery -A app.worker.celery_app beat --loglevel=warning
+    depends_on:
+      - celery_worker
+    restart: unless-stopped
+{%- endif %}
+
+{%- if cookiecutter.use_taskiq %}
+  taskiq_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment: *app_env
+    command: taskiq worker app.worker.taskiq_app:broker --workers 4
+{%- if cookiecutter.use_postgresql or cookiecutter.enable_redis %}
+    depends_on:
+{%- if cookiecutter.use_postgresql %}
+      db:
+        condition: service_healthy
+{%- endif %}
+{%- if cookiecutter.enable_redis %}
+      redis:
+        condition: service_healthy
+{%- endif %}
+{%- endif %}
+    restart: unless-stopped
+
+  taskiq_scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment: *app_env
+    command: taskiq scheduler app.worker.taskiq_app:scheduler
+    depends_on:
+      - taskiq_worker
+    restart: unless-stopped
+{%- endif %}
+
+{%- if cookiecutter.use_arq %}
+  arq_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment: *app_env
+    command: arq app.worker.arq_app.WorkerSettings
+{%- if cookiecutter.use_postgresql or cookiecutter.enable_redis %}
+    depends_on:
+{%- if cookiecutter.use_postgresql %}
+      db:
+        condition: service_healthy
+{%- endif %}
+{%- if cookiecutter.enable_redis %}
+      redis:
+        condition: service_healthy
+{%- endif %}
+{%- endif %}
+    restart: unless-stopped
+{%- endif %}
+
 {%- if cookiecutter.use_frontend %}
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-wss://example.com}
+{%- if cookiecutter.enable_oauth %}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://example.com}
+{%- endif %}
     environment:
       NODE_ENV: production
       BACKEND_URL: ${BACKEND_URL:-http://app:{{ cookiecutter.backend_port }}}
-      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-wss://example.com}
+{%- if cookiecutter.enable_oauth %}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://example.com}
+{%- endif %}
     depends_on:
       - app
     restart: unless-stopped
