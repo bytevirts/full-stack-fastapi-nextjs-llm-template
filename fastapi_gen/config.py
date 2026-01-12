@@ -107,6 +107,7 @@ class LLMProviderType(str, Enum):
 
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
     OPENROUTER = "openrouter"
 
 
@@ -464,6 +465,7 @@ class ProjectConfig(BaseModel):
             "llm_provider": self.llm_provider.value,
             "use_openai": self.llm_provider == LLMProviderType.OPENAI,
             "use_anthropic": self.llm_provider == LLMProviderType.ANTHROPIC,
+            "use_gemini": self.llm_provider == LLMProviderType.GEMINI,
             "use_openrouter": self.llm_provider == LLMProviderType.OPENROUTER,
             "enable_conversation_persistence": self.enable_conversation_persistence,
             "enable_webhooks": self.enable_webhooks,

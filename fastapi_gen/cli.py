@@ -150,7 +150,7 @@ def new(output: Path | None, no_input: bool, name: str | None) -> None:
 )
 @click.option(
     "--llm-provider",
-    type=click.Choice(["openai", "anthropic", "openrouter"]),
+    type=click.Choice(["openai", "anthropic", "gemini", "openrouter"]),
     default="openai",
     help="LLM provider (default: openai). Note: openrouter only works with pydantic_ai",
 )
@@ -433,6 +433,7 @@ def templates() -> None:
     console.print("  --ai-framework langchain    LangChain")
     console.print("  --llm-provider openai       OpenAI (gpt-4o-mini)")
     console.print("  --llm-provider anthropic    Anthropic (claude-sonnet-4-5)")
+    console.print("  --llm-provider gemini       Gemini (Google AI)")
     console.print("  --llm-provider openrouter   OpenRouter (pydantic_ai only)")
     console.print()
 

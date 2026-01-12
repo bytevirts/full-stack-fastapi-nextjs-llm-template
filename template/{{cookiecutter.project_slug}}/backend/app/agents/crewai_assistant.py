@@ -38,6 +38,9 @@ from langchain_openai import ChatOpenAI
 {%- if cookiecutter.use_anthropic %}
 from langchain_anthropic import ChatAnthropic
 {%- endif %}
+{%- if cookiecutter.use_gemini %}
+from langchain_google_genai import ChatGoogleGenerativeAI
+{%- endif %}
 
 from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
 from app.core.config import settings
@@ -290,6 +293,13 @@ class CrewAIAssistant:
             model=self.model_name,
             temperature=self.temperature,
             api_key=settings.ANTHROPIC_API_KEY,
+        )
+{%- endif %}
+{%- if cookiecutter.use_gemini %}
+        return ChatGoogleGenerativeAI(
+            model=self.model_name,
+            temperature=self.temperature,
+            google_api_key=settings.GEMINI_API_KEY,
         )
 {%- endif %}
 

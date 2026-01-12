@@ -27,6 +27,10 @@ from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.openrouter import OpenRouterModel
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 {%- endif %}
+{%- if cookiecutter.use_gemini %}
+from pydantic_ai.models.google import GoogleModel
+from pydantic_ai.providers.google_gla import GoogleGLAProvider
+{%- endif %}
 from pydantic_ai.settings import ModelSettings
 
 from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
@@ -83,6 +87,12 @@ class AssistantAgent:
         model = OpenRouterModel(
             self.model_name,
             provider=OpenRouterProvider(api_key=settings.OPENROUTER_API_KEY),
+        )
+{%- endif %}
+{%- if cookiecutter.use_gemini %}
+        model = GoogleModel(
+            self.model_name,
+            provider=GoogleGLAProvider(api_key=settings.GEMINI_API_KEY),
         )
 {%- endif %}
 

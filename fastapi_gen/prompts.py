@@ -700,6 +700,7 @@ def prompt_llm_provider(ai_framework: AIFrameworkType) -> LLMProviderType:
     choices = [
         questionary.Choice("OpenAI (gpt-4o-mini)", value=LLMProviderType.OPENAI),
         questionary.Choice("Anthropic (claude-sonnet-4-5)", value=LLMProviderType.ANTHROPIC),
+        questionary.Choice("Gemini (Google AI)", value=LLMProviderType.GEMINI),
     ]
 
     # OpenRouter only available for PydanticAI (not LangChain, LangGraph, or CrewAI)

@@ -113,6 +113,9 @@ dependencies = [
 {%- if cookiecutter.use_openrouter %}
     "pydantic-ai-slim[openrouter]>=0.0.39",
 {%- endif %}
+{%- if cookiecutter.use_gemini %}
+    "pydantic-ai-slim[google]>=0.0.39",
+{%- endif %}
 {%- endif %}
 {%- if cookiecutter.enable_ai_agent and cookiecutter.use_langchain %}
     "langchain>=0.3.0",
@@ -121,6 +124,9 @@ dependencies = [
 {%- endif %}
 {%- if cookiecutter.use_anthropic %}
     "langchain-anthropic>=0.3.0",
+{%- endif %}
+{%- if cookiecutter.use_gemini %}
+    "langchain-google-genai>=1.0.0",
 {%- endif %}
     "langgraph>=0.2.0",
 {%- endif %}
@@ -132,6 +138,9 @@ dependencies = [
 {%- if cookiecutter.use_anthropic %}
     "langchain-anthropic>=0.3.0",
 {%- endif %}
+{%- if cookiecutter.use_gemini %}
+    "langchain-google-genai>=1.0.0",
+{%- endif %}
     "langgraph>=0.2.0",
     "langgraph-checkpoint>=2.0.0",
 {%- endif %}
@@ -142,6 +151,9 @@ dependencies = [
 {%- endif %}
 {%- if cookiecutter.use_anthropic %}
     "langchain-anthropic>=0.3.0",
+{%- endif %}
+{%- if cookiecutter.use_gemini %}
+    "langchain-google-genai>=1.0.0",
 {%- endif %}
 {%- endif %}
 {%- if cookiecutter.logfire_httpx or cookiecutter.enable_file_storage %}

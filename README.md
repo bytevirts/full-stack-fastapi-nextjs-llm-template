@@ -64,7 +64,7 @@ Generated projects include **CLAUDE.md** and **AGENTS.md** files optimized for A
 - **WebSocket Streaming** - Real-time responses with full event access
 - **Conversation Persistence** - Save chat history to database
 - **Custom Tools** - Easily extend agent capabilities
-- **Multi-provider Support** - OpenAI, Anthropic, OpenRouter
+- **Multi-provider Support** - OpenAI, Anthropic, Gemini, OpenRouter
 - **Observability** - Logfire for PydanticAI, LangSmith for LangChain
 
 ### ⚡ Backend (FastAPI)
@@ -331,6 +331,9 @@ fastapi-fullstack create my_app --ai-agent --ai-framework pydantic_ai
 # PydanticAI with Anthropic
 fastapi-fullstack create my_app --ai-agent --ai-framework pydantic_ai --llm-provider anthropic
 
+# PydanticAI with Gemini
+fastapi-fullstack create my_app --ai-agent --ai-framework pydantic_ai --llm-provider gemini
+
 # PydanticAI with OpenRouter
 fastapi-fullstack create my_app --ai-agent --ai-framework pydantic_ai --llm-provider openrouter
 
@@ -339,14 +342,17 @@ fastapi-fullstack create my_app --ai-agent --ai-framework langchain
 
 # LangChain with Anthropic
 fastapi-fullstack create my_app --ai-agent --ai-framework langchain --llm-provider anthropic
+
+# LangChain with Gemini
+fastapi-fullstack create my_app --ai-agent --ai-framework langchain --llm-provider gemini
 ```
 
 ### Supported LLM Providers
 
-| Framework | OpenAI | Anthropic | OpenRouter |
-|-----------|:------:|:---------:|:----------:|
-| **PydanticAI** | ✓ | ✓ | ✓ |
-| **LangChain** | ✓ | ✓ | - |
+| Framework | OpenAI | Anthropic | Gemini | OpenRouter |
+|-----------|:------:|:---------:|:------:|:----------:|
+| **PydanticAI** | ✓ | ✓ | ✓ | ✓ |
+| **LangChain** | ✓ | ✓ | ✓ | - |
 
 ### PydanticAI Integration
 
@@ -630,7 +636,7 @@ generated_at = "2024-12-21T10:30:00+00:00"
 | **Auth** | `jwt`, `api_key`, `both`, `none` | JWT includes user management |
 | **OAuth** | `none`, `google` | Social login |
 | **AI Framework** | `pydantic_ai`, `langchain` | Choose your AI agent framework |
-| **LLM Provider** | `openai`, `anthropic`, `openrouter` | OpenRouter only with PydanticAI |
+| **LLM Provider** | `openai`, `anthropic`, `gemini`, `openrouter` | OpenRouter only with PydanticAI |
 | **Background Tasks** | `none`, `celery`, `taskiq`, `arq` | Distributed queues |
 | **Frontend** | `none`, `nextjs` | Next.js 15 + React 19 |
 

@@ -66,6 +66,7 @@
   "llm_provider": "openai",
   "use_openai": true,
   "use_anthropic": false,
+  "use_gemini": false,
   "use_openrouter": false,
   "enable_conversation_persistence": false,
   "enable_webhooks": false,

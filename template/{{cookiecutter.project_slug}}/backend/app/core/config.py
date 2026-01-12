@@ -273,6 +273,10 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str = ""
     AI_MODEL: str = "anthropic/claude-3.5-sonnet"
 {%- endif %}
+{%- if cookiecutter.use_gemini %}
+    GEMINI_API_KEY: str = ""
+    AI_MODEL: str = "gemini-1.5-flash"
+{%- endif %}
     AI_TEMPERATURE: float = 0.7
     AI_FRAMEWORK: str = "{{ cookiecutter.ai_framework }}"
     LLM_PROVIDER: str = "{{ cookiecutter.llm_provider }}"

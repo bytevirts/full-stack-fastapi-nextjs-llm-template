@@ -1144,10 +1144,10 @@ class TestPromptLLMProvider:
 
         prompt_llm_provider(AIFrameworkType.PYDANTIC_AI)
 
-        # Check that select was called with 3 choices (OpenAI, Anthropic, OpenRouter)
+        # Check that select was called with 4 choices (OpenAI, Anthropic, Gemini, OpenRouter)
         select_call = mock_questionary.select.call_args
         choices = select_call[1]["choices"]
-        assert len(choices) == 3
+        assert len(choices) == 4
 
     @patch("fastapi_gen.prompts.questionary")
     def test_openrouter_option_not_added_for_langchain(self, mock_questionary: MagicMock) -> None:
@@ -1159,10 +1159,10 @@ class TestPromptLLMProvider:
 
         prompt_llm_provider(AIFrameworkType.LANGCHAIN)
 
-        # Check that select was called with 2 choices (OpenAI, Anthropic)
+        # Check that select was called with 3 choices (OpenAI, Anthropic, Gemini)
         select_call = mock_questionary.select.call_args
         choices = select_call[1]["choices"]
-        assert len(choices) == 2
+        assert len(choices) == 3
 
     @patch("fastapi_gen.prompts.questionary")
     def test_raises_on_cancel(self, mock_questionary: MagicMock) -> None:
