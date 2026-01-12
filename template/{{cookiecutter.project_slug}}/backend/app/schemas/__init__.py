@@ -1,6 +1,6 @@
 """Pydantic schemas."""
 {%- set schemas = [] %}
-{%- if cookiecutter.use_jwt or cookiecutter.include_example_crud or cookiecutter.enable_conversation_persistence or cookiecutter.enable_webhooks %}
+{%- if cookiecutter.use_jwt or cookiecutter.include_example_crud or cookiecutter.enable_conversation_persistence or cookiecutter.enable_webhooks or cookiecutter.enable_billing %}
 # ruff: noqa: I001, RUF022 - Imports structured for Jinja2 template conditionals
 {%- endif %}
 {%- if cookiecutter.use_jwt %}
@@ -43,6 +43,11 @@ from app.schemas.webhook import (
     WebhookDeliveryListResponse,
     WebhookTestResponse,
 )
+{%- endif %}
+{%- if cookiecutter.enable_billing %}
+{%- set _ = schemas.extend(["BillingSummary", "CheckoutRequest", "CheckoutResponse", "TokenLedgerRead"]) %}
+
+from app.schemas.billing import BillingSummary, CheckoutRequest, CheckoutResponse, TokenLedgerRead
 {%- endif %}
 {%- if schemas %}
 

@@ -61,6 +61,10 @@ MODEL_ICONS: dict[str, str] = {
     "ToolCall": "fa-solid fa-wrench",
     "Webhook": "fa-solid fa-link",
     "WebhookDelivery": "fa-solid fa-paper-plane",
+    "CreditWallet": "fa-solid fa-wallet",
+    "Subscription": "fa-solid fa-repeat",
+    "TokenLedger": "fa-solid fa-receipt",
+    "PaymentTransaction": "fa-solid fa-credit-card",
 }
 
 

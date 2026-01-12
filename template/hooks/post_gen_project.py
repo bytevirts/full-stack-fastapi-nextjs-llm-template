@@ -32,6 +32,7 @@ enable_rate_limiting = "{{ cookiecutter.enable_rate_limiting }}" == "True"
 enable_session_management = "{{ cookiecutter.enable_session_management }}" == "True"
 enable_conversation_persistence = "{{ cookiecutter.enable_conversation_persistence }}" == "True"
 enable_webhooks = "{{ cookiecutter.enable_webhooks }}" == "True"
+enable_billing = "{{ cookiecutter.enable_billing }}" == "True"
 enable_oauth = "{{ cookiecutter.enable_oauth }}" == "True"
 use_jwt = "{{ cookiecutter.use_jwt }}" == "True"
 use_api_key = "{{ cookiecutter.use_api_key }}" == "True"
@@ -123,6 +124,20 @@ if not enable_webhooks or not use_database:
     remove_file(os.path.join(backend_app, "repositories", "webhook.py"))
     remove_file(os.path.join(backend_app, "services", "webhook.py"))
     remove_file(os.path.join(backend_app, "schemas", "webhook.py"))
+
+# --- Billing files ---
+if not enable_billing:
+    remove_file(os.path.join(backend_app, "api", "routes", "v1", "billing.py"))
+    remove_file(os.path.join(backend_app, "api", "routes", "webhooks", "__init__.py"))
+    remove_file(os.path.join(backend_app, "api", "routes", "webhooks", "creem.py"))
+    remove_dir(os.path.join(backend_app, "billing"))
+    remove_file(os.path.join(backend_app, "db", "models", "billing.py"))
+    remove_file(os.path.join(backend_app, "repositories", "billing.py"))
+    remove_file(os.path.join(backend_app, "services", "billing.py"))
+    remove_file(os.path.join(backend_app, "schemas", "billing.py"))
+    remove_dir(os.path.join(os.getcwd(), "frontend", "src", "app", "[locale]", "(dashboard)", "billing"))
+    remove_dir(os.path.join(os.getcwd(), "frontend", "src", "app", "api", "billing"))
+    remove_file(os.path.join(os.getcwd(), "frontend", "src", "types", "billing.ts"))
 
 # --- Session management files ---
 if not enable_session_management or not use_jwt:

@@ -21,6 +21,9 @@ from app.core.config import settings
 from app.core.logfire_setup import instrument_app, setup_logfire
 {%- endif %}
 from app.core.middleware import RequestIDMiddleware
+{%- if cookiecutter.enable_billing and cookiecutter.use_billing_creem and cookiecutter.use_jwt and cookiecutter.use_sqlalchemy and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+from app.api.routes.webhooks import creem as creem_webhooks
+{%- endif %}
 
 {%- if cookiecutter.enable_redis %}
 from app.clients.redis import RedisClient
@@ -164,6 +167,16 @@ def create_app() -> FastAPI:
         {
             "name": "webhooks",
             "description": "Webhook management - subscribe to events and manage deliveries",
+        },
+{%- endif %}
+{%- if cookiecutter.enable_billing %}
+        {
+            "name": "billing",
+            "description": "Billing endpoints for credits, subscriptions, and usage",
+        },
+        {
+            "name": "billing-webhooks",
+            "description": "Billing provider webhooks (Creem)",
         },
 {%- endif %}
 {%- if cookiecutter.enable_ai_agent %}
@@ -348,6 +361,9 @@ def create_app() -> FastAPI:
 
     # Include API router
     app.include_router(api_router, prefix=settings.API_V1_STR)
+{%- if cookiecutter.enable_billing and cookiecutter.use_billing_creem and cookiecutter.use_jwt and cookiecutter.use_sqlalchemy and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+    app.include_router(creem_webhooks.router, prefix="/api", tags=["billing-webhooks"])
+{%- endif %}
 
 {%- if cookiecutter.enable_pagination %}
 

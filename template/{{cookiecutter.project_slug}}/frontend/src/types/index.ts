@@ -8,3 +8,6 @@ export * from "./chat";
 {%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_database %}
 export * from "./conversation";
 {%- endif %}
+{%- if cookiecutter.enable_billing %}
+export * from "./billing";
+{%- endif %}

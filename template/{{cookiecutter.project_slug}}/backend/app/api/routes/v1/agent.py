@@ -38,6 +38,19 @@ from app.db.models.user import User
 {%- if cookiecutter.websocket_auth_api_key %}
 from app.core.config import settings
 {%- endif %}
+{%- if cookiecutter.enable_billing and cookiecutter.websocket_auth_jwt %}
+from app.core.exceptions import PaymentRequiredError
+from app.services.billing import BillingService, estimate_prompt_tokens, estimate_tokens_from_text
+{%- if cookiecutter.use_postgresql %}
+from app.db.session import get_db_context
+{%- endif %}
+{%- if cookiecutter.use_sqlite %}
+from app.db.session import get_db_session
+{%- endif %}
+{%- if not cookiecutter.websocket_auth_api_key %}
+from app.core.config import settings
+{%- endif %}
+{%- endif %}
 {%- if cookiecutter.enable_conversation_persistence and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from app.db.session import get_db_context
 from app.api.deps import ConversationSvc, get_conversation_service
@@ -180,6 +193,38 @@ async def agent_websocket(
             if not user_message:
                 await manager.send_event(websocket, "error", {"message": "Empty message"})
                 continue
+
+{%- if cookiecutter.enable_billing and cookiecutter.websocket_auth_jwt %}
+            prompt_tokens_estimate = estimate_prompt_tokens(conversation_history, user_message)
+            billing_model_name = settings.AI_MODEL
+            estimated_total_tokens = (
+                prompt_tokens_estimate + settings.BILLING_OUTPUT_TOKENS_ESTIMATE
+            )
+            try:
+{%- if cookiecutter.use_postgresql %}
+                async with get_db_context() as db:
+                    billing_service = BillingService(db)
+                    await billing_service.precheck(
+                        user.id, billing_model_name, estimated_total_tokens
+                    )
+{%- else %}
+                with get_db_session() as db:
+                    billing_service = BillingService(db)
+                    billing_service.precheck(
+                        user.id, billing_model_name, estimated_total_tokens
+                    )
+{%- endif %}
+            except PaymentRequiredError as exc:
+                await manager.send_event(
+                    websocket,
+                    "error",
+                    {"message": exc.message, "code": exc.code},
+                )
+                continue
+{%- else %}
+            prompt_tokens_estimate = None
+            billing_model_name = None
+{%- endif %}
 
 {%- if cookiecutter.enable_conversation_persistence and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 
@@ -440,6 +485,39 @@ async def agent_websocket(
                         logger.warning(f"Failed to persist assistant response: {e}")
 {%- endif %}
 
+{%- if cookiecutter.enable_billing and cookiecutter.websocket_auth_jwt %}
+                # Record billing usage
+                if agent_run.result:
+                    try:
+                        completion_tokens = estimate_tokens_from_text(agent_run.result.output)
+                        total_tokens = (prompt_tokens_estimate or 0) + completion_tokens
+{%- if cookiecutter.use_postgresql %}
+                        async with get_db_context() as db:
+                            billing_service = BillingService(db)
+                            await billing_service.commit_usage(
+                                user_id=user.id,
+                                model_name=billing_model_name,
+                                prompt_tokens=prompt_tokens_estimate,
+                                completion_tokens=completion_tokens,
+                                total_tokens=total_tokens,
+                                metadata={"channel": "websocket"},
+                            )
+{%- else %}
+                        with get_db_session() as db:
+                            billing_service = BillingService(db)
+                            billing_service.commit_usage(
+                                user_id=user.id,
+                                model_name=billing_model_name,
+                                prompt_tokens=prompt_tokens_estimate,
+                                completion_tokens=completion_tokens,
+                                total_tokens=total_tokens,
+                                metadata={"channel": "websocket"},
+                            )
+{%- endif %}
+                    except Exception as e:
+                        logger.warning(f"Failed to record billing usage: {e}")
+{%- endif %}
+
                 await manager.send_event(websocket, "complete", {
 {%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_database %}
                     "conversation_id": current_conversation_id,
@@ -482,6 +560,19 @@ from app.db.models.user import User
 {%- endif %}
 {%- if cookiecutter.websocket_auth_api_key %}
 from app.core.config import settings
+{%- endif %}
+{%- if cookiecutter.enable_billing and cookiecutter.websocket_auth_jwt %}
+from app.core.exceptions import PaymentRequiredError
+from app.services.billing import BillingService, estimate_prompt_tokens, estimate_tokens_from_text
+{%- if cookiecutter.use_postgresql %}
+from app.db.session import get_db_context
+{%- endif %}
+{%- if cookiecutter.use_sqlite %}
+from app.db.session import get_db_session
+{%- endif %}
+{%- if not cookiecutter.websocket_auth_api_key %}
+from app.core.config import settings
+{%- endif %}
 {%- endif %}
 {%- if cookiecutter.enable_conversation_persistence and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from app.db.session import get_db_context
@@ -629,6 +720,38 @@ async def agent_websocket(
             if not user_message:
                 await manager.send_event(websocket, "error", {"message": "Empty message"})
                 continue
+
+{%- if cookiecutter.enable_billing and cookiecutter.websocket_auth_jwt %}
+            prompt_tokens_estimate = estimate_prompt_tokens(conversation_history, user_message)
+            billing_model_name = settings.AI_MODEL
+            estimated_total_tokens = (
+                prompt_tokens_estimate + settings.BILLING_OUTPUT_TOKENS_ESTIMATE
+            )
+            try:
+{%- if cookiecutter.use_postgresql %}
+                async with get_db_context() as db:
+                    billing_service = BillingService(db)
+                    await billing_service.precheck(
+                        user.id, billing_model_name, estimated_total_tokens
+                    )
+{%- else %}
+                with get_db_session() as db:
+                    billing_service = BillingService(db)
+                    billing_service.precheck(
+                        user.id, billing_model_name, estimated_total_tokens
+                    )
+{%- endif %}
+            except PaymentRequiredError as exc:
+                await manager.send_event(
+                    websocket,
+                    "error",
+                    {"message": exc.message, "code": exc.code},
+                )
+                continue
+{%- else %}
+            prompt_tokens_estimate = None
+            billing_model_name = None
+{%- endif %}
 
 {%- if cookiecutter.enable_conversation_persistence and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 
@@ -878,6 +1001,39 @@ async def agent_websocket(
                         logger.warning(f"Failed to persist assistant response: {e}")
 {%- endif %}
 
+{%- if cookiecutter.enable_billing and cookiecutter.websocket_auth_jwt %}
+                # Record billing usage
+                if final_output:
+                    try:
+                        completion_tokens = estimate_tokens_from_text(final_output)
+                        total_tokens = (prompt_tokens_estimate or 0) + completion_tokens
+{%- if cookiecutter.use_postgresql %}
+                        async with get_db_context() as db:
+                            billing_service = BillingService(db)
+                            await billing_service.commit_usage(
+                                user_id=user.id,
+                                model_name=billing_model_name,
+                                prompt_tokens=prompt_tokens_estimate,
+                                completion_tokens=completion_tokens,
+                                total_tokens=total_tokens,
+                                metadata={"channel": "websocket"},
+                            )
+{%- else %}
+                        with get_db_session() as db:
+                            billing_service = BillingService(db)
+                            billing_service.commit_usage(
+                                user_id=user.id,
+                                model_name=billing_model_name,
+                                prompt_tokens=prompt_tokens_estimate,
+                                completion_tokens=completion_tokens,
+                                total_tokens=total_tokens,
+                                metadata={"channel": "websocket"},
+                            )
+{%- endif %}
+                    except Exception as e:
+                        logger.warning(f"Failed to record billing usage: {e}")
+{%- endif %}
+
                 await manager.send_event(websocket, "complete", {
 {%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_database %}
                     "conversation_id": current_conversation_id,
@@ -920,6 +1076,19 @@ from app.db.models.user import User
 {%- endif %}
 {%- if cookiecutter.websocket_auth_api_key %}
 from app.core.config import settings
+{%- endif %}
+{%- if cookiecutter.enable_billing and cookiecutter.websocket_auth_jwt %}
+from app.core.exceptions import PaymentRequiredError
+from app.services.billing import BillingService, estimate_prompt_tokens, estimate_tokens_from_text
+{%- if cookiecutter.use_postgresql %}
+from app.db.session import get_db_context
+{%- endif %}
+{%- if cookiecutter.use_sqlite %}
+from app.db.session import get_db_session
+{%- endif %}
+{%- if not cookiecutter.websocket_auth_api_key %}
+from app.core.config import settings
+{%- endif %}
 {%- endif %}
 {%- if cookiecutter.enable_conversation_persistence and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from app.db.session import get_db_context
@@ -1068,6 +1237,38 @@ async def agent_websocket(
             if not user_message:
                 await manager.send_event(websocket, "error", {"message": "Empty message"})
                 continue
+
+{%- if cookiecutter.enable_billing and cookiecutter.websocket_auth_jwt %}
+            prompt_tokens_estimate = estimate_prompt_tokens(conversation_history, user_message)
+            billing_model_name = settings.AI_MODEL
+            estimated_total_tokens = (
+                prompt_tokens_estimate + settings.BILLING_OUTPUT_TOKENS_ESTIMATE
+            )
+            try:
+{%- if cookiecutter.use_postgresql %}
+                async with get_db_context() as db:
+                    billing_service = BillingService(db)
+                    await billing_service.precheck(
+                        user.id, billing_model_name, estimated_total_tokens
+                    )
+{%- else %}
+                with get_db_session() as db:
+                    billing_service = BillingService(db)
+                    billing_service.precheck(
+                        user.id, billing_model_name, estimated_total_tokens
+                    )
+{%- endif %}
+            except PaymentRequiredError as exc:
+                await manager.send_event(
+                    websocket,
+                    "error",
+                    {"message": exc.message, "code": exc.code},
+                )
+                continue
+{%- else %}
+            prompt_tokens_estimate = None
+            billing_model_name = None
+{%- endif %}
 
 {%- if cookiecutter.enable_conversation_persistence and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 
@@ -1320,6 +1521,39 @@ async def agent_websocket(
                         logger.warning(f"Failed to persist assistant response: {e}")
 {%- endif %}
 
+{%- if cookiecutter.enable_billing and cookiecutter.websocket_auth_jwt %}
+                # Record billing usage
+                if final_output:
+                    try:
+                        completion_tokens = estimate_tokens_from_text(final_output)
+                        total_tokens = (prompt_tokens_estimate or 0) + completion_tokens
+{%- if cookiecutter.use_postgresql %}
+                        async with get_db_context() as db:
+                            billing_service = BillingService(db)
+                            await billing_service.commit_usage(
+                                user_id=user.id,
+                                model_name=billing_model_name,
+                                prompt_tokens=prompt_tokens_estimate,
+                                completion_tokens=completion_tokens,
+                                total_tokens=total_tokens,
+                                metadata={"channel": "websocket"},
+                            )
+{%- else %}
+                        with get_db_session() as db:
+                            billing_service = BillingService(db)
+                            billing_service.commit_usage(
+                                user_id=user.id,
+                                model_name=billing_model_name,
+                                prompt_tokens=prompt_tokens_estimate,
+                                completion_tokens=completion_tokens,
+                                total_tokens=total_tokens,
+                                metadata={"channel": "websocket"},
+                            )
+{%- endif %}
+                    except Exception as e:
+                        logger.warning(f"Failed to record billing usage: {e}")
+{%- endif %}
+
                 await manager.send_event(websocket, "complete", {
 {%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_database %}
                     "conversation_id": current_conversation_id,
@@ -1360,6 +1594,19 @@ from app.db.models.user import User
 {%- endif %}
 {%- if cookiecutter.websocket_auth_api_key %}
 from app.core.config import settings
+{%- endif %}
+{%- if cookiecutter.enable_billing and cookiecutter.websocket_auth_jwt %}
+from app.core.exceptions import PaymentRequiredError
+from app.services.billing import BillingService, estimate_prompt_tokens, estimate_tokens_from_text
+{%- if cookiecutter.use_postgresql %}
+from app.db.session import get_db_context
+{%- endif %}
+{%- if cookiecutter.use_sqlite %}
+from app.db.session import get_db_session
+{%- endif %}
+{%- if not cookiecutter.websocket_auth_api_key %}
+from app.core.config import settings
+{%- endif %}
 {%- endif %}
 {%- if cookiecutter.enable_conversation_persistence and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from app.db.session import get_db_context
@@ -1491,6 +1738,38 @@ async def agent_websocket(
             if not user_message:
                 await manager.send_event(websocket, "error", {"message": "Empty message"})
                 continue
+
+{%- if cookiecutter.enable_billing and cookiecutter.websocket_auth_jwt %}
+            prompt_tokens_estimate = estimate_prompt_tokens(conversation_history, user_message)
+            billing_model_name = settings.AI_MODEL
+            estimated_total_tokens = (
+                prompt_tokens_estimate + settings.BILLING_OUTPUT_TOKENS_ESTIMATE
+            )
+            try:
+{%- if cookiecutter.use_postgresql %}
+                async with get_db_context() as db:
+                    billing_service = BillingService(db)
+                    await billing_service.precheck(
+                        user.id, billing_model_name, estimated_total_tokens
+                    )
+{%- else %}
+                with get_db_session() as db:
+                    billing_service = BillingService(db)
+                    billing_service.precheck(
+                        user.id, billing_model_name, estimated_total_tokens
+                    )
+{%- endif %}
+            except PaymentRequiredError as exc:
+                await manager.send_event(
+                    websocket,
+                    "error",
+                    {"message": exc.message, "code": exc.code},
+                )
+                continue
+{%- else %}
+            prompt_tokens_estimate = None
+            billing_model_name = None
+{%- endif %}
 
 {%- if cookiecutter.enable_conversation_persistence and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 
@@ -1779,6 +2058,39 @@ async def agent_websocket(
 
 {%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_database %}
                 # Note: Agent outputs are saved individually in agent_completed events above
+{%- endif %}
+
+{%- if cookiecutter.enable_billing and cookiecutter.websocket_auth_jwt %}
+                # Record billing usage
+                if final_output:
+                    try:
+                        completion_tokens = estimate_tokens_from_text(final_output)
+                        total_tokens = (prompt_tokens_estimate or 0) + completion_tokens
+{%- if cookiecutter.use_postgresql %}
+                        async with get_db_context() as db:
+                            billing_service = BillingService(db)
+                            await billing_service.commit_usage(
+                                user_id=user.id,
+                                model_name=billing_model_name,
+                                prompt_tokens=prompt_tokens_estimate,
+                                completion_tokens=completion_tokens,
+                                total_tokens=total_tokens,
+                                metadata={"channel": "websocket"},
+                            )
+{%- else %}
+                        with get_db_session() as db:
+                            billing_service = BillingService(db)
+                            billing_service.commit_usage(
+                                user_id=user.id,
+                                model_name=billing_model_name,
+                                prompt_tokens=prompt_tokens_estimate,
+                                completion_tokens=completion_tokens,
+                                total_tokens=total_tokens,
+                                metadata={"channel": "websocket"},
+                            )
+{%- endif %}
+                    except Exception as e:
+                        logger.warning(f"Failed to record billing usage: {e}")
 {%- endif %}
 
                 await manager.send_event(websocket, "complete", {

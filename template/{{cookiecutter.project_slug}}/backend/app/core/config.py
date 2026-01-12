@@ -3,7 +3,7 @@
 # ruff: noqa: I001 - Imports structured for Jinja2 template conditionals
 {% endif %}
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 {% if cookiecutter.use_database or cookiecutter.enable_redis -%}
 from pydantic import computed_field, field_validator{% if cookiecutter.use_jwt or cookiecutter.use_api_key or cookiecutter.enable_cors %}, ValidationInfo{% endif %}
@@ -136,6 +136,29 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # 30 minutes
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     ALGORITHM: str = "HS256"
+{%- endif %}
+
+{%- if cookiecutter.enable_billing %}
+
+    # === Billing ===
+    BILLING_MONTHLY_CREDITS: int = 50
+    BILLING_TOKENS_PER_CREDIT: int = 1000
+    BILLING_CHARS_PER_TOKEN: int = 4
+    BILLING_OUTPUT_TOKENS_ESTIMATE: int = 512
+    BILLING_CREDIT_PACKS: list[dict[str, Any]] = [
+        {"credits": 2000, "price_usd": 9.9, "provider_product_id": ""},
+        {"credits": 5000, "price_usd": 19.9, "provider_product_id": ""},
+    ]
+    BILLING_MODEL_MULTIPLIERS: dict[str, float] = {"default": 1.0}
+    BILLING_PROVIDER: str = "{{ cookiecutter.billing_provider }}"
+
+    # === Creem ===
+    CREEM_API_KEY: str | None = None
+    CREEM_WEBHOOK_SECRET: str = ""
+    CREEM_API_BASE_URL: str = "https://api.creem.io"
+    CREEM_SUBSCRIPTION_PRODUCT_ID: str = ""
+    CREEM_SUCCESS_URL: str = "http://localhost:{{ cookiecutter.frontend_port }}/billing?status=success"
+    CREEM_CANCEL_URL: str = "http://localhost:{{ cookiecutter.frontend_port }}/billing?status=cancel"
 {%- endif %}
 
 {%- if cookiecutter.enable_oauth_google %}

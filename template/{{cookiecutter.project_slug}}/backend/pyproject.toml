@@ -60,6 +60,8 @@ dependencies = [
 {%- endif %}
 {%- if cookiecutter.enable_oauth %}
     "authlib>=1.3.0",
+{%- endif %}
+{%- if cookiecutter.enable_oauth or cookiecutter.enable_billing %}
     "httpx>=0.27.0",
 {%- endif %}
 {%- if cookiecutter.enable_redis %}

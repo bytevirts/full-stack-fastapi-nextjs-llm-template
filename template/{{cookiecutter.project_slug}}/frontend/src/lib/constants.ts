@@ -33,6 +33,9 @@ export const ROUTES = {
   CHAT: "/chat",
   PROFILE: "/profile",
   SETTINGS: "/settings",
+{%- if cookiecutter.enable_billing %}
+  BILLING: "/billing",
+{%- endif %}
 } as const;
 
 // WebSocket URL (for chat - this needs to be direct to backend for WS)

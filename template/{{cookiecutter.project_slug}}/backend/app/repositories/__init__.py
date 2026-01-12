@@ -1,5 +1,5 @@
 """Repository layer for database operations."""
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite or cookiecutter.use_jwt or cookiecutter.include_example_crud or cookiecutter.enable_conversation_persistence or cookiecutter.enable_webhooks %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite or cookiecutter.use_jwt or cookiecutter.include_example_crud or cookiecutter.enable_conversation_persistence or cookiecutter.enable_webhooks or cookiecutter.enable_billing %}
 # ruff: noqa: I001, RUF022 - Imports structured for Jinja2 template conditionals
 {%- endif %}
 {%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
@@ -26,6 +26,10 @@ from app.repositories import conversation as conversation_repo
 
 from app.repositories import webhook as webhook_repo
 {%- endif %}
+{%- if cookiecutter.enable_billing %}
+
+from app.repositories import billing as billing_repo
+{%- endif %}
 
 __all__ = [
 {%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
@@ -45,5 +49,8 @@ __all__ = [
 {%- endif %}
 {%- if cookiecutter.enable_webhooks and cookiecutter.use_database %}
     "webhook_repo",
+{%- endif %}
+{%- if cookiecutter.enable_billing %}
+    "billing_repo",
 {%- endif %}
 ]

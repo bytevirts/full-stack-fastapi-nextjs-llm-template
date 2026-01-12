@@ -10,6 +10,7 @@ from .config import (
     AIFrameworkType,
     AuthType,
     BackgroundTaskType,
+    BillingProvider,
     CIType,
     DatabaseType,
     FrontendType,
@@ -179,6 +180,17 @@ def new(output: Path | None, no_input: bool, name: str | None) -> None:
 @click.option("--file-storage", is_flag=True, help="Enable S3/MinIO file storage")
 @click.option("--webhooks", is_flag=True, help="Enable webhooks support")
 @click.option(
+    "--billing/--no-billing",
+    default=True,
+    help="Enable billing system (monthly credits + credit packs)",
+)
+@click.option(
+    "--billing-provider",
+    type=click.Choice(["stripe", "creem", "alipay", "wechat"]),
+    default="creem",
+    help="Billing provider",
+)
+@click.option(
     "--python-version",
     type=click.Choice(["3.11", "3.12", "3.13"]),
     default="3.12",
@@ -225,6 +237,8 @@ def create(
     prometheus: bool,
     file_storage: bool,
     webhooks: bool,
+    billing: bool,
+    billing_provider: str,
     python_version: str,
     i18n: bool,
     preset: str | None,
@@ -249,6 +263,8 @@ def create(
                 enable_docker=True,
                 enable_kubernetes=True,
                 ci_type=CIType.GITHUB,
+                enable_billing=billing,
+                billing_provider=BillingProvider(billing_provider),
                 generate_env=not no_env,
                 include_example_crud=True,
                 frontend=FrontendType(frontend),
@@ -270,6 +286,8 @@ def create(
                 enable_conversation_persistence=True,
                 enable_docker=True,
                 ci_type=CIType.GITHUB,
+                enable_billing=billing,
+                billing_provider=BillingProvider(billing_provider),
                 generate_env=not no_env,
                 frontend=FrontendType(frontend),
                 backend_port=backend_port,
@@ -291,6 +309,8 @@ def create(
                 enable_docker=False,
                 enable_kubernetes=False,
                 ci_type=CIType.NONE,
+                enable_billing=False,
+                billing_provider=BillingProvider(billing_provider),
                 generate_env=not no_env,
                 include_example_crud=False,
                 frontend=FrontendType(frontend),
@@ -332,6 +352,8 @@ def create(
                 enable_prometheus=prometheus,
                 enable_file_storage=file_storage,
                 enable_webhooks=webhooks,
+                enable_billing=billing,
+                billing_provider=BillingProvider(billing_provider),
                 python_version=python_version,
                 enable_i18n=i18n,
             )
@@ -347,6 +369,8 @@ def create(
             console.print(
                 f"[dim]AI Agent: {config.ai_framework.value} ({config.llm_provider.value})[/]"
             )
+        if config.enable_billing:
+            console.print(f"[dim]Billing: {config.billing_provider.value}[/]")
         if config.background_tasks != BackgroundTaskType.NONE:
             console.print(f"[dim]Task Queue: {config.background_tasks.value}[/]")
         console.print()
@@ -420,6 +444,8 @@ def templates() -> None:
     console.print("  --websockets       Enable WebSocket support")
     console.print("  --file-storage     Enable S3/MinIO file storage")
     console.print("  --webhooks         Enable webhooks support")
+    console.print("  --billing/--no-billing  Enable billing system")
+    console.print("  --billing-provider stripe|creem|alipay|wechat  Billing provider")
     console.print()
 
     console.print("[bold]Observability:[/]")

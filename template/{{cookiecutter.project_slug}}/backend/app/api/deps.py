@@ -2,7 +2,7 @@
 
 Dependency injection factories for services, repositories, and authentication.
 """
-{%- if cookiecutter.use_database or cookiecutter.use_jwt or cookiecutter.use_api_key or cookiecutter.enable_redis %}
+{%- if cookiecutter.use_database or cookiecutter.use_jwt or cookiecutter.use_api_key or cookiecutter.enable_redis or cookiecutter.enable_billing %}
 # ruff: noqa: I001, E402 - Imports structured for Jinja2 template conditionals
 {%- endif %}
 {%- if cookiecutter.use_database or cookiecutter.use_jwt or cookiecutter.use_api_key or cookiecutter.enable_redis %}
@@ -72,6 +72,9 @@ from app.services.item import ItemService
 {%- endif %}
 {%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_database %}
 from app.services.conversation import ConversationService
+{%- endif %}
+{%- if cookiecutter.enable_billing %}
+from app.services.billing import BillingService
 {%- endif %}
 {%- if cookiecutter.use_jwt %}
 {%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
@@ -166,6 +169,19 @@ def get_conversation_service() -> ConversationService:
 
 
 ConversationSvc = Annotated[ConversationService, Depends(get_conversation_service)]
+{%- endif %}
+
+{%- if cookiecutter.enable_billing %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
+
+
+def get_billing_service(db: DBSession) -> BillingService:
+    """Create BillingService instance with database session."""
+    return BillingService(db)
+
+
+BillingSvc = Annotated[BillingService, Depends(get_billing_service)]
+{%- endif %}
 {%- endif %}
 
 {%- if cookiecutter.use_jwt %}

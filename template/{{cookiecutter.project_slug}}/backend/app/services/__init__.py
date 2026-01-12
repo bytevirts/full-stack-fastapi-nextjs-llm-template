@@ -4,7 +4,7 @@ Services orchestrate business operations, using repositories for data access
 and raising domain exceptions for error handling.
 """
 {%- set services = [] %}
-{%- if cookiecutter.use_jwt or cookiecutter.include_example_crud or cookiecutter.enable_conversation_persistence or cookiecutter.enable_webhooks %}
+{%- if cookiecutter.use_jwt or cookiecutter.include_example_crud or cookiecutter.enable_conversation_persistence or cookiecutter.enable_webhooks or cookiecutter.enable_billing %}
 # ruff: noqa: I001, RUF022 - Imports structured for Jinja2 template conditionals
 {%- endif %}
 {%- if cookiecutter.use_jwt %}
@@ -31,6 +31,11 @@ from app.services.conversation import ConversationService
 {%- set _ = services.append("WebhookService") %}
 
 from app.services.webhook import WebhookService
+{%- endif %}
+{%- if cookiecutter.enable_billing %}
+{%- set _ = services.append("BillingService") %}
+
+from app.services.billing import BillingService
 {%- endif %}
 {%- if services %}
 

@@ -24,6 +24,9 @@ from app.api.routes.v1 import conversations
 {%- if cookiecutter.enable_webhooks and cookiecutter.use_database %}
 from app.api.routes.v1 import webhooks
 {%- endif %}
+{%- if cookiecutter.enable_billing and cookiecutter.use_jwt and cookiecutter.use_sqlalchemy and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+from app.api.routes.v1 import billing
+{%- endif %}
 {%- if cookiecutter.enable_websockets %}
 from app.api.routes.v1 import ws
 {%- endif %}
@@ -73,6 +76,12 @@ v1_router.include_router(conversations.router, prefix="/conversations", tags=["c
 
 # Webhook routes
 v1_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
+{%- endif %}
+
+{%- if cookiecutter.enable_billing and cookiecutter.use_jwt and cookiecutter.use_sqlalchemy and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+
+# Billing routes
+v1_router.include_router(billing.router, tags=["billing"])
 {%- endif %}
 
 {%- if cookiecutter.enable_websockets %}

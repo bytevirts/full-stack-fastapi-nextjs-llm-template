@@ -13,6 +13,7 @@ from .config import (
     AIFrameworkType,
     AuthType,
     BackgroundTaskType,
+    BillingProvider,
     CIType,
     DatabaseType,
     FrontendType,
@@ -419,6 +420,61 @@ def prompt_integrations(
         "enable_cors": "cors" in features,
         "enable_orjson": "orjson" in features,
     }
+
+
+def prompt_billing_provider() -> BillingProvider:
+    """Prompt for billing provider selection."""
+    choices = [
+        questionary.Choice("Creem (webhook supported)", value=BillingProvider.CREEM),
+        questionary.Choice("Stripe (placeholder adapter)", value=BillingProvider.STRIPE),
+        questionary.Choice("Alipay (placeholder adapter)", value=BillingProvider.ALIPAY),
+        questionary.Choice("WeChat Pay (placeholder adapter)", value=BillingProvider.WECHAT),
+    ]
+
+    return cast(
+        BillingProvider,
+        _check_cancelled(
+            questionary.select(
+                "Billing provider:",
+                choices=choices,
+                default=choices[0],
+            ).ask()
+        ),
+    )
+
+
+def prompt_billing(
+    *,
+    database: DatabaseType,
+    orm_type: OrmType,
+    auth: AuthType,
+) -> tuple[bool, BillingProvider]:
+    """Prompt for billing system configuration."""
+    console.print()
+    console.print("[bold cyan]Billing & Subscriptions[/]")
+    console.print()
+
+    if database not in (DatabaseType.POSTGRESQL, DatabaseType.SQLITE):
+        console.print("[yellow]Billing requires PostgreSQL or SQLite. Skipping.[/]")
+        return False, BillingProvider.CREEM
+    if orm_type != OrmType.SQLALCHEMY:
+        console.print("[yellow]Billing requires SQLAlchemy. Skipping.[/]")
+        return False, BillingProvider.CREEM
+    if auth not in (AuthType.JWT, AuthType.BOTH):
+        console.print("[yellow]Billing requires JWT auth. Skipping.[/]")
+        return False, BillingProvider.CREEM
+
+    enable_billing = _check_cancelled(
+        questionary.confirm(
+            "Enable billing system (monthly credits + credit packs)?",
+            default=True,
+        ).ask()
+    )
+    provider = BillingProvider.CREEM
+    if enable_billing:
+        provider = prompt_billing_provider()
+
+    return enable_billing, provider
 
 
 def _validate_positive_integer(value: str) -> bool | str:
@@ -842,6 +898,17 @@ def run_interactive_prompts() -> ProjectConfig:
     # Integrations (pass context for dynamic option filtering)
     integrations = prompt_integrations(database=database, orm_type=orm_type)
 
+    # Billing system (monthly credits + credit packs)
+    enable_billing, billing_provider = prompt_billing(
+        database=database,
+        orm_type=orm_type,
+        auth=auth,
+    )
+    integrations["enable_billing"] = enable_billing
+    if enable_billing:
+        integrations["billing_provider"] = billing_provider
+        integrations["enable_admin_panel"] = True
+
     # Dev tools
     dev_tools = prompt_dev_tools()
 
@@ -981,6 +1048,8 @@ def show_summary(config: ProjectConfig) -> None:
         if config.admin_require_auth:
             admin_info += " [auth]"
         enabled_features.append(admin_info)
+    if config.enable_billing:
+        enabled_features.append(f"Billing ({config.billing_provider.value})")
     if config.enable_websockets:
         enabled_features.append("WebSockets")
     if config.enable_ai_agent:

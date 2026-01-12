@@ -24,6 +24,10 @@ from app.db.models.conversation import Conversation, Message, ToolCall
 {%- set _ = models.extend(["Webhook", "WebhookDelivery"]) %}
 from app.db.models.webhook import Webhook, WebhookDelivery
 {%- endif %}
+{%- if cookiecutter.enable_billing %}
+{%- set _ = models.extend(["CreditWallet", "Subscription", "TokenLedger", "PaymentTransaction"]) %}
+from app.db.models.billing import CreditWallet, Subscription, TokenLedger, PaymentTransaction
+{%- endif %}
 {%- if models %}
 
 __all__ = {{ models }}

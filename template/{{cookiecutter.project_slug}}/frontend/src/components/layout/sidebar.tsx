@@ -4,13 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/constants";
-import { LayoutDashboard, MessageSquare } from "lucide-react";
+import { LayoutDashboard, MessageSquare{%- if cookiecutter.enable_billing %}, CreditCard{%- endif %} } from "lucide-react";
 import { useSidebarStore } from "@/stores";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui";
 
 const navigation = [
   { name: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard },
   { name: "Chat", href: ROUTES.CHAT, icon: MessageSquare },
+{%- if cookiecutter.enable_billing %}
+  { name: "Billing", href: ROUTES.BILLING, icon: CreditCard },
+{%- endif %}
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

@@ -84,6 +84,15 @@ class OAuthProvider(str, Enum):
     GOOGLE = "google"
 
 
+class BillingProvider(str, Enum):
+    """Supported billing providers."""
+
+    STRIPE = "stripe"
+    CREEM = "creem"
+    ALIPAY = "alipay"
+    WECHAT = "wechat"
+
+
 class AIFrameworkType(str, Enum):
     """Supported AI agent frameworks."""
 
@@ -187,6 +196,8 @@ class ProjectConfig(BaseModel):
     websocket_auth: WebSocketAuthType = WebSocketAuthType.NONE
     enable_cors: bool = True
     enable_orjson: bool = True
+    enable_billing: bool = True
+    billing_provider: BillingProvider = BillingProvider.CREEM
 
     # Frontend features
     enable_i18n: bool = False
@@ -343,7 +354,19 @@ class ProjectConfig(BaseModel):
             raise ValueError(
                 f"{self.background_tasks.value.title()} requires Redis to be enabled. "
                 "All task queue systems use Redis as broker/backend."
-            )
+                )
+
+        if self.enable_billing:
+            if self.database not in (DatabaseType.POSTGRESQL, DatabaseType.SQLITE):
+                raise ValueError("Billing requires PostgreSQL or SQLite database")
+            if self.orm_type != OrmType.SQLALCHEMY:
+                raise ValueError("Billing requires SQLAlchemy ORM")
+            if self.auth not in (AuthType.JWT, AuthType.BOTH):
+                raise ValueError("Billing requires JWT auth to be enabled")
+            if not self.enable_admin_panel:
+                self.enable_admin_panel = True
+            if not self.admin_require_auth:
+                self.admin_require_auth = True
 
         # Logfire feature-specific validations (only when logfire is enabled)
         if self.enable_logfire:
@@ -444,6 +467,12 @@ class ProjectConfig(BaseModel):
             "use_openrouter": self.llm_provider == LLMProviderType.OPENROUTER,
             "enable_conversation_persistence": self.enable_conversation_persistence,
             "enable_webhooks": self.enable_webhooks,
+            "enable_billing": self.enable_billing,
+            "billing_provider": self.billing_provider.value,
+            "use_billing_stripe": self.billing_provider == BillingProvider.STRIPE,
+            "use_billing_creem": self.billing_provider == BillingProvider.CREEM,
+            "use_billing_alipay": self.billing_provider == BillingProvider.ALIPAY,
+            "use_billing_wechat": self.billing_provider == BillingProvider.WECHAT,
             "websocket_auth": self.websocket_auth.value,
             "websocket_auth_jwt": self.websocket_auth == WebSocketAuthType.JWT,
             "websocket_auth_api_key": self.websocket_auth == WebSocketAuthType.API_KEY,
